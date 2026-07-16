@@ -11,7 +11,7 @@ const ADMIN_ROUTES = '/admin'
 // Staff-only route prefix
 const STAFF_ROUTES = '/staff'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Allow public routes

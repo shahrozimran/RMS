@@ -65,14 +65,14 @@ export default async function StaffDashboardPage() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '28px' }}>
         <div className="surface-card" style={{ padding: '24px' }}>
           <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '16px' }}>Shift Status</h3>
-          {activeShift.data
+          {activeShift
             ? (
               <div>
                 <div className="badge badge-green" style={{ marginBottom: '12px' }}>● Clocked In</div>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                  Since {new Date(activeShift.data.clock_in).toLocaleTimeString()}
+                  Since {new Date(activeShift.clock_in).toLocaleTimeString()}
                 </p>
-                <ClockOutButton shiftId={activeShift.data.id} />
+                <ClockOutButton shiftId={activeShift.id} />
               </div>
             )
             : (
