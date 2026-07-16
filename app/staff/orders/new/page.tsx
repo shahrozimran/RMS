@@ -51,6 +51,7 @@ export default function StaffNewOrderPage() {
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
   const [orderType, setOrderType] = useState<'dine_in' | 'takeaway' | 'delivery'>('dine_in')
   const [selectedTableId, setSelectedTableId] = useState<number | null>(null)
+  const [tableToFree, setTableToFree] = useState<Table | null>(null)
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerAddress, setCustomerAddress] = useState('')
@@ -231,9 +232,15 @@ export default function StaffNewOrderPage() {
                   <button
                     key={t.id}
                     className={`btn ${selectedTableId === t.id ? 'btn-primary' : 'btn-secondary'} ${t.status === 'occupied' ? 'btn-danger' : ''}`}
-                    onClick={() => { setSelectedTableId(t.id); setError('') }}
+                    onClick={() => {
+                      if (t.status === 'occupied') {
+                        setTableToFree(t)
+                      } else {
+                        setSelectedTableId(t.id)
+                        setError('')
+                      }
+                    }}
                     style={{ minHeight: '36px', padding: '6px' }}
-                    disabled={t.status === 'occupied'}
                   >
                     {t.table_number}
                   </button>
@@ -473,6 +480,53 @@ export default function StaffNewOrderPage() {
           </div>
         )}
       </div>
+
+      {tableToFree && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100
+        }}>
+          <div className="surface-card animate-in" style={{ padding: '24px', width: '100%', maxWidth: '360px', textAlign: 'center' }}>
+            <div style={{ fontSize: '36px', marginBottom: '12px' }}>⚠️</div>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '8px' }}>Table {tableToFree.table_number} is Occupied</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '20px', lineHeight: '1.4' }}>
+              Are you sure you want to release and free this table? This will allow you to place a new order on it.
+            </p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <button className="btn btn-secondary" onClick={() => setTableToFree(null)}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={async () => {
+                try {
+                  const res = await fetch(`/api/tables/${tableToFree.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'free' })
+                  })
+                  if (!res.ok) {
+                    const json = await res.json()
+                    throw new Error(json.error || 'Failed to update table')
+                  }
+                  // Refresh tables list
+                  const tablesRes = await supabase.from('tables').select('*').order('id', { ascending: true })
+                  if (tablesRes.data) setTables(tablesRes.data)
+                  
+                  // Auto-select this table
+                  setSelectedTableId(tableToFree.id)
+                  setTableToFree(null)
+                  setError('')
+                } catch (err: any) {
+                  setError(err.message)
+                  setTableToFree(null)
+                }
+              }}>
+                Yes, Free Table
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
