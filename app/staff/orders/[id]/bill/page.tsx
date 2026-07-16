@@ -81,18 +81,10 @@ export default function StaffBillingPage() {
 
   const fetchOrderDetail = async () => {
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          table:tables(table_number),
-          order_items(*, product:products(name))
-        `)
-        .eq('id', id)
-        .single()
-
-      if (error) throw error
-      setOrder(data as any)
+      const res = await fetch(`/api/orders/${id}`)
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to load order details')
+      setOrder(json.data)
     } catch (err: any) {
       setError(err.message)
     } finally {

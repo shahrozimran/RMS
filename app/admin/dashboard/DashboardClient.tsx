@@ -40,7 +40,7 @@ export default function AdminDashboardClient({
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
         // Refetch active orders on any change
         supabase.from('orders')
-          .select('id, status, order_type, total, created_at, staff:users(name), table:tables(table_number)')
+          .select('id, status, order_type, total, created_at, staff:users!staff_id(name), table:tables(table_number)')
           .in('status', ['active','billed'])
           .order('created_at', { ascending: false })
           .then(({ data }) => { if (data) setLiveOrders(data) })

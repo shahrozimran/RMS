@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('orders')
-      .select('*, staff:users(id,name), table:tables(table_number), order_items(*, product:products(name,image_url))', { count: 'exact' })
+      .select('*, staff:users!staff_id(id,name), table:tables(table_number), order_items(*, product:products(name,image_url))', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range((page - 1) * limit, page * limit - 1)
 
@@ -39,7 +39,10 @@ export async function POST(request: NextRequest) {
     requirePermission(session, 'orders', 'write')
     const body = await request.json()
     const parsed = createOrderSchema.safeParse(body)
-    if (!parsed.success) return NextResponse.json({ error: 'Validation error', details: parsed.error.flatten() }, { status: 400 })
+    if (!parsed.success) {
+      console.error("Zod Validation Error on CREATE ORDER:", parsed.error.flatten())
+      return NextResponse.json({ error: 'Validation error', details: parsed.error.flatten() }, { status: 400 })
+    }
 
     const supabase = await createAdminClient()
     const { items, ...orderData } = parsed.data

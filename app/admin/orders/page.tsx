@@ -60,7 +60,7 @@ export default function AdminOrdersPage() {
     try {
       let query = supabase
         .from('orders')
-        .select('id, created_at, status, order_type, total, staff:users(name), table:tables(table_number)')
+        .select('id, created_at, status, order_type, total, staff:users!staff_id(name), table:tables(table_number)')
         .order('created_at', { ascending: false })
 
       if (statusFilter) query = query.eq('status', statusFilter)

@@ -56,17 +56,17 @@ export const orderItemSchema = z.object({
   quantity:      z.number().int().min(1),
   unit_price:    z.number().min(0),
   tax_rate:      z.number().min(0).max(100).default(0),
-  notes:         z.string().max(200).optional(),
+  notes:         z.string().max(200).optional().nullable(),
 })
 
 export const createOrderSchema = z.object({
   table_id:      z.number().int().positive().optional().nullable(),
   order_type:    z.enum(['dine_in', 'takeaway', 'delivery']),
   items:         z.array(orderItemSchema).min(1, 'Order must have at least one item'),
-  notes:         z.string().max(500).optional(),
-  customer_name: z.string().max(100).optional(),
-  customer_phone:z.string().max(20).optional(),
-  customer_address: z.string().max(300).optional(),
+  notes:         z.string().max(500).optional().nullable(),
+  customer_name: z.string().max(100).optional().nullable(),
+  customer_phone:z.string().max(20).optional().nullable(),
+  customer_address: z.string().max(300).optional().nullable(),
 })
 
 export const voidOrderSchema = z.object({

@@ -4,7 +4,7 @@ import { getSession } from '@/lib/auth/session'
 import { requirePermission, PermissionError } from '@/lib/auth/rbac'
 import { voidOrderSchema } from '@/lib/utils/validation'
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession()
     requirePermission(session, 'orders', 'void')
@@ -13,8 +13,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     if (!parsed.success) return NextResponse.json({ error: 'Reason required', details: parsed.error.flatten() }, { status: 400 })
 
     const supabase = await createAdminClient()
+    const resolvedParams = await params
     const { error } = await supabase.rpc('void_order', {
-      p_order_id:    params.id,
+      p_order_id:    resolvedParams.id,
       p_reason:      parsed.data.reason,
       p_approved_by: session!.id,
     })

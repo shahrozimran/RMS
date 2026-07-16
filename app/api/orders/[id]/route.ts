@@ -5,19 +5,20 @@ import { requirePermission, PermissionError } from '@/lib/auth/rbac'
 import { voidOrderSchema, processPaymentSchema } from '@/lib/utils/validation'
 import { buildTaxSummary, calculateGrandTotal } from '@/lib/utils/tax'
 
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession()
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const supabase = await createAdminClient()
+    const resolvedParams = await params
 
     const { data, error } = await supabase
       .from('orders')
-      .select('*, staff:users(id,name), table:tables(table_number), order_items(*, product:products(name,image_url,tax_rate)), payments(*)')
-      .eq('id', params.id)
+      .select('*, staff:users!staff_id(id,name), table:tables(table_number), order_items(*, product:products(name,image_url,tax_rate)), payments(*)')
+      .eq('id', resolvedParams.id)
       .single()
 
-    if (error) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (error) return NextResponse.json({ error: `${error.message} (Code: ${error.code})` }, { status: 404 })
 
     // Staff can only see their own orders
     if (session.authType === 'staff' && data.staff_id !== session.id) {
@@ -30,13 +31,14 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession()
     requirePermission(session, 'orders', 'write')
     const body = await request.json()
     const supabase = await createAdminClient()
-    const { data, error } = await supabase.from('orders').update(body).eq('id', params.id).select().single()
+    const resolvedParams = await params
+    const { data, error } = await supabase.from('orders').update(body).eq('id', resolvedParams.id).select().single()
     if (error) throw error
     return NextResponse.json({ data })
   } catch (e: any) {

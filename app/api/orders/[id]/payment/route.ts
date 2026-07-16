@@ -4,7 +4,7 @@ import { getSession } from '@/lib/auth/session'
 import { requirePermission, PermissionError } from '@/lib/auth/rbac'
 import { processPaymentSchema } from '@/lib/utils/validation'
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession()
     requirePermission(session, 'orders', 'write')
@@ -14,12 +14,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     if (!parsed.success) return NextResponse.json({ error: 'Validation error', details: parsed.error.flatten() }, { status: 400 })
 
     const supabase = await createAdminClient()
+    const resolvedParams = await params
 
     // Fetch the order to verify it exists and belongs to staff
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select('id, status, total, staff_id, discount_amount')
-      .eq('id', params.id)
+      .eq('id', resolvedParams.id)
       .single()
     if (orderError || !order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     if (order.status === 'paid') return NextResponse.json({ error: 'Order is already paid' }, { status: 400 })
@@ -62,11 +63,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       status: 'paid',
       discount_amount: finalDiscount,
       total: newTotal,
-    }).eq('id', params.id)
+    }).eq('id', resolvedParams.id)
 
     // Record payment entries
     const paymentRecords = payments.map(p => ({
-      order_id:        params.id,
+      order_id:        resolvedParams.id,
       method:          p.method,
       amount:          p.amount,
       cash_tendered:   p.cash_tendered ?? null,
@@ -78,20 +79,20 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     // Deduct stock atomically
     await supabase.rpc('deduct_stock_for_order', {
-      p_order_id:     params.id,
+      p_order_id:     resolvedParams.id,
       p_performed_by: session!.id,
     })
 
     // Free the table
-    await supabase.rpc('void_order', { p_order_id: params.id }).then(() => {})
+    await supabase.rpc('void_order', { p_order_id: resolvedParams.id }).then(() => {})
     // Actually update table status via direct query
-    const { data: fullOrder } = await supabase.from('orders').select('table_id, order_type').eq('id', params.id).single()
+    const { data: fullOrder } = await supabase.from('orders').select('table_id, order_type').eq('id', resolvedParams.id).single()
     if (fullOrder?.order_type === 'dine_in' && fullOrder.table_id) {
       await supabase.from('tables').update({ status: 'free' }).eq('id', fullOrder.table_id)
     }
 
     await supabase.from('activity_logs').insert({
-      user_id: session?.id, action: 'PROCESS_PAYMENT', entity_type: 'order', entity_id: params.id,
+      user_id: session?.id, action: 'PROCESS_PAYMENT', entity_type: 'order', entity_id: resolvedParams.id,
       details: { methods: payments.map(p => p.method), total: newTotal },
     })
 

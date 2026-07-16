@@ -97,7 +97,7 @@ export default function AdminOrderDetailPage() {
         .from('orders')
         .select(`
           *,
-          staff:users(name),
+          staff:users!staff_id(name),
           table:tables(table_number),
           order_items(*, product:products(name)),
           payments(*)

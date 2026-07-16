@@ -68,18 +68,10 @@ export default function StaffOrderDetailPage() {
 
   const fetchOrderDetail = async () => {
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          table:tables(table_number),
-          order_items(*, product:products(name))
-        `)
-        .eq('id', id)
-        .single()
-
-      if (error) throw error
-      setOrder(data as any)
+      const res = await fetch(`/api/orders/${id}`)
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to load order details')
+      setOrder(json.data)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -88,6 +80,7 @@ export default function StaffOrderDetailPage() {
   }
 
   if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading order details...</div>
+  if (error) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--error)', fontWeight: 600 }}>Error: {error}</div>
   if (!order) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>Order not found.</div>
 
   const fmt = (n: number) => formatCurrency(n, currency)
