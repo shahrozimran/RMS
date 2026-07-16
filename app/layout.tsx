@@ -8,8 +8,13 @@ export const metadata: Metadata = {
   },
   description: 'A full-stack restaurant management system for orders, billing, and analytics.',
   manifest: '/manifest.json',
+}
+
+export const viewport = {
   themeColor: '#f97316',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
