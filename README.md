@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Restaurant Management System (RMS)
 
-## Getting Started
+A full-stack, role-based Restaurant Management System designed for tablet table-side order taking and desktop admin operations. Built using **Next.js 14**, **Supabase (PostgreSQL)**, and **Tailwind CSS**.
 
-First, run the development server:
+---
 
+## 🌟 Key Features
+
+1. **Role-Based Access Control (RBAC)**: Secure separation between Admin/Manager and Waiter/Cashier staff.
+2. **Interactive Order-Taking**: Tablet-optimized order builder, custom variants, and order notes.
+3. **Advanced Billing & Split Payments**: Tax summaries calculated per-product, service charges, promo codes, and multi-method split payments.
+4. **Thermal Receipt Printing & PDF Download**: Prints receipts directly using browser print configurations or downloads print-ready PDFs.
+5. **Real-time Live Operations**: Supabase Realtime alerts for live orders, notifications, and table sessions.
+6. **Inventory Recipe Mapping**: Mapped recipes auto-deduct raw ingredients on payment, generating low-stock warnings.
+7. **Detailed Sales & Tax Reports**: Dynamic date filters, KPI charts, staff performance leaderboards, and CSV/PDF export options.
+8. **Lockout Security Protection**: Lockout protection for staff accounts after 5 failed login attempts.
+
+---
+
+## 🚀 Setup Instructions
+
+### 1. Database Setup (Supabase)
+Create a new Supabase project and run the migrations inside the `/supabase/migrations` folder in order:
+1. `001_initial_schema.sql` (Creates core tables)
+2. `002_rls_policies.sql` (Applies Row-Level Security checks)
+3. `003_seed_data.sql` (Populates roles, default settings, sample categories/products)
+4. `004_functions.sql` (Postgres RPC functions for stock deduction, void transactions, table gen)
+
+### 2. Environment Variables Configuration
+Duplicate the environment template file:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.local.example .env.local
+```
+Then populate the fields in `.env.local`:
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+JWT_SECRET=your_super_secret_jwt_key_min_32_chars
+NEXT_PUBLIC_APP_NAME="Restaurant Management System"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3. Installation
+Install the project dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 4. Running the Development Server
+Launch the development server:
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 🔒 Default Logins
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+*   **Admin Access**: Sign up or sign in using standard Supabase Auth credentials. (Make sure you link a corresponding row in the `users` table with `auth_user_id` mapping).
+*   **Default Seed Staff Logins**:
+    *   **Cashier**: username `cashier_one`, password `password123`
+    *   **Waiter**: username `waiter_one`, password `password123`
