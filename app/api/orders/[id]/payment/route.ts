@@ -83,9 +83,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       p_performed_by: session!.id,
     })
 
-    // Free the table
-    await supabase.rpc('void_order', { p_order_id: resolvedParams.id }).then(() => {})
-    // Actually update table status via direct query
+    // Free the table (Actually update table status via direct query)
     const { data: fullOrder } = await supabase.from('orders').select('table_id, order_type').eq('id', resolvedParams.id).single()
     if (fullOrder?.order_type === 'dine_in' && fullOrder.table_id) {
       await supabase.from('tables').update({ status: 'free' }).eq('id', fullOrder.table_id)
