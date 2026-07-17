@@ -21,17 +21,64 @@ export async function POST(request: NextRequest) {
 
     // Upload to Supabase Storage
     const buffer = Buffer.from(await file.arrayBuffer())
-    const { error: uploadError } = await supabase.storage
-      .from('menu-images')
-      .upload(fileName, buffer, {
-        contentType: file.type || 'image/jpeg',
-        cacheControl: '3600',
-        upsert: true
-      })
+    let uploadError: any = null
+
+    try {
+      const result = await supabase.storage
+        .from('menu-images')
+        .upload(fileName, buffer, {
+          contentType: file.type || 'image/jpeg',
+          cacheControl: '3600',
+          upsert: true
+        })
+      uploadError = result.error
+    } catch (e: any) {
+      uploadError = e
+    }
+
+    // Auto-heal: If bucket does not exist, try to create it and retry upload
+    if (uploadError) {
+      const errMsg = uploadError.message || ''
+      const isBucketMissing = 
+        errMsg.toLowerCase().includes('bucket not found') || 
+        errMsg.toLowerCase().includes('does not exist') ||
+        uploadError.status === 404 ||
+        uploadError.statusCode === '404' ||
+        uploadError.statusCode === 404
+
+      if (isBucketMissing) {
+        // Attempt to create the public bucket
+        const { error: createError } = await supabase.storage.createBucket('menu-images', {
+          public: true,
+          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp'],
+          fileSizeLimit: 5242880 // 5MB
+        })
+
+        if (!createError) {
+          // Retry the upload
+          const { error: retryError } = await supabase.storage
+            .from('menu-images')
+            .upload(fileName, buffer, {
+              contentType: file.type || 'image/jpeg',
+              cacheControl: '3600',
+              upsert: true
+            })
+          
+          if (!retryError) {
+            uploadError = null
+          } else {
+            uploadError = retryError
+          }
+        } else {
+          uploadError = new Error(`Failed to auto-create bucket: ${createError.message}. Orig upload error: ${errMsg}`)
+        }
+      }
+    }
 
     if (uploadError) {
-      // If bucket doesn't exist, try to create it or fall back
-      return NextResponse.json({ error: `Storage upload failed: ${uploadError.message}. Make sure the bucket 'menu-images' exists in Supabase storage and is public.` }, { status: 500 })
+      return NextResponse.json({ 
+        error: `Storage upload failed: ${uploadError.message}. Make sure the bucket 'menu-images' exists in Supabase storage and is public.` 
+      }, { status: 500 })
     }
 
     // Get public URL
