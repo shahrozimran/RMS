@@ -19,6 +19,11 @@ export default function AdminTablesPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  // Edit Table states
+  const [editingTable, setEditingTable] = useState<Table | null>(null)
+  const [editCapacity, setEditCapacity] = useState<number>(4)
+  const [editStatus, setEditStatus] = useState<Table['status']>('free')
+
   const supabase = createClient()
 
   useEffect(() => {
@@ -98,26 +103,41 @@ export default function AdminTablesPage() {
     }
   }
 
-  const updateTableStatus = async (id: number, currentStatus: string) => {
-    const nextStatusMap: Record<string, string> = {
-      free: 'reserved',
-      reserved: 'cleaning',
-      cleaning: 'free',
-      occupied: 'cleaning' // occupied must go to cleaning when done
-    }
-    const nextStatus = nextStatusMap[currentStatus] || 'free'
+  const openEditModal = (table: Table) => {
+    setEditingTable(table)
+    setEditCapacity(table.capacity || 4)
+    setEditStatus(table.status)
+    setError('')
+    setSuccess('')
+  }
+
+  const handleSaveTable = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingTable) return
+    setSaving(true)
+    setError('')
+    setSuccess('')
 
     try {
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from('tables')
-        .update({ status: nextStatus })
-        .eq('id', id)
-      if (error) throw error
+        .update({
+          capacity: editCapacity,
+          status: editStatus
+        })
+        .eq('id', editingTable.id)
+      if (updateError) throw updateError
+
+      setSuccess(`Table ${editingTable.table_number} updated successfully!`)
+      setEditingTable(null)
       fetchTables()
     } catch (err: any) {
       setError(err.message)
+    } finally {
+      setSaving(false)
     }
   }
+
 
   return (
     <div className="animate-in">
@@ -142,7 +162,7 @@ export default function AdminTablesPage() {
                 <div
                   key={t.id}
                   className={`table-card ${t.status}`}
-                  onClick={() => updateTableStatus(t.id, t.status)}
+                  onClick={() => openEditModal(t)}
                 >
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="7" width="18" height="3" rx="1"/><path d="M6 10v7M18 10v7M3 17h18"/></svg>
                   <span style={{ fontSize: '16px', fontWeight: 700 }}>{t.table_number}</span>
@@ -158,10 +178,8 @@ export default function AdminTablesPage() {
               ))}
             </div>
           )}
-          <div style={{ marginTop: '24px', padding: '12px 16px', background: 'var(--surface-raised)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--charcoal-soft)', display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <span>● Green — click to Reserve</span>
-            <span>● Yellow — click to Clean</span>
-            <span>● Grey — click to Free</span>
+          <div style={{ marginTop: '24px', padding: '12px 16px', background: 'var(--surface-raised)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--charcoal-soft)', display: 'flex', justifyContent: 'center' }}>
+            <span>ℹ️ Click on any table card above to customize its capacity or change its status.</span>
           </div>
         </div>
 
@@ -199,6 +217,61 @@ export default function AdminTablesPage() {
           </div>
         </div>
       </div>
+
+      {/* Edit Table Modal Overlay */}
+      {editingTable && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100
+        }}>
+          <div className="surface-card animate-in" style={{ padding: '24px', width: '100%', maxWidth: '360px', boxShadow: 'var(--shadow-lg)' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '4px' }}>Edit Table {editingTable.table_number}</h3>
+            <p style={{ fontSize: '12px', color: 'var(--charcoal-soft)', marginBottom: '20px' }}>Configure capacity and status for this table.</p>
+            
+            <form onSubmit={handleSaveTable} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="input-group">
+                <label className="input-label" htmlFor="edit-capacity">Table Capacity (Pax)</label>
+                <input
+                  id="edit-capacity"
+                  className="input"
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={editCapacity}
+                  onChange={(e) => setEditCapacity(parseInt(e.target.value) || 1)}
+                  required
+                />
+              </div>
+
+              <div className="input-group">
+                <label className="input-label" htmlFor="edit-status">Current Status</label>
+                <select
+                  id="edit-status"
+                  className="input"
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value as any)}
+                  style={{ appearance: 'auto', background: 'var(--surface)', paddingRight: '12px' }}
+                >
+                  <option value="free">🟢 Free</option>
+                  <option value="occupied">🔴 Occupied</option>
+                  <option value="reserved">🟡 Reserved</option>
+                  <option value="cleaning">⚫ Cleaning</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setEditingTable(null)} style={{ flex: 1 }}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={saving} style={{ flex: 1 }}>
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

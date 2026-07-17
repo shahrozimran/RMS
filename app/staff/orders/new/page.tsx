@@ -34,6 +34,7 @@ interface Product {
 interface Table {
   id: number
   table_number: string
+  capacity: number
   status: 'free' | 'occupied' | 'reserved' | 'cleaning'
 }
 
@@ -346,9 +347,10 @@ export default function StaffNewOrderPage() {
                         setError('')
                       }
                     }}
-                    style={{ minHeight: '36px', padding: '6px' }}
+                    style={{ minHeight: '44px', padding: '6px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px' }}
                   >
-                    {t.table_number}
+                    <span style={{ fontWeight: 'bold', fontSize: '13px' }}>{t.table_number}</span>
+                    <span style={{ fontSize: '10px', opacity: 0.8 }}>({t.capacity || 4} Pax)</span>
                   </button>
                 ))}
               </div>
