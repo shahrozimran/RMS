@@ -192,35 +192,6 @@ export default function LoginPage() {
                   : 'Sign In to Staff Portal'
                 }
               </button>
-
-              <div style={{ marginTop: '16px', padding: '12px', background: 'var(--surface-raised)', border: '1px solid var(--border)', borderRadius: '9px', fontSize: '13px' }}>
-                <div style={{ fontWeight: 600, color: 'var(--charcoal)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                  Demo Staff Credentials
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStaffUsername('cashier_one')
-                      setStaffPassword('password123')
-                    }}
-                    style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent-dark)', textDecoration: 'underline', cursor: 'pointer', textAlign: 'left', font: 'inherit' }}
-                  >
-                    Cashier: cashier_one / password123 (Click to autofill)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStaffUsername('waiter_one')
-                      setStaffPassword('password123')
-                    }}
-                    style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent-dark)', textDecoration: 'underline', cursor: 'pointer', textAlign: 'left', font: 'inherit' }}
-                  >
-                    Waiter: waiter_one / password123 (Click to autofill)
-                  </button>
-                </div>
-              </div>
             </form>
           )}
 
@@ -268,23 +239,6 @@ export default function LoginPage() {
                   : 'Sign In to Admin Portal'
                 }
               </button>
-
-              <div style={{ marginTop: '16px', padding: '12px', background: 'var(--surface-raised)', border: '1px solid var(--border)', borderRadius: '9px', fontSize: '13px' }}>
-                <div style={{ fontWeight: 600, color: 'var(--charcoal)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                  Demo Admin Credentials
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAdminEmail('admin@demo.com')
-                    setAdminPassword('password123')
-                  }}
-                  style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent-dark)', textDecoration: 'underline', cursor: 'pointer', textAlign: 'left', font: 'inherit' }}
-                >
-                  Admin: admin@demo.com / password123 (Click to autofill)
-                </button>
-              </div>
             </form>
           )}
 
