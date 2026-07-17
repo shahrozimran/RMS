@@ -95,13 +95,13 @@ export default function AdminReportsPage() {
           staffList.map(async (s) => {
             const { data: summary } = await supabase
               .rpc('get_staff_sales_summary', { p_staff_id: s.id, p_from_date: fromISO, p_to_date: toISO })
-              .single()
+              .single() as { data: { orders_count: number; total_revenue: number; avg_order_value: number } | null; error: any }
             return {
               name: s.name,
               username: s.username,
-              orders_count: summary?.orders_count || 0,
-              total_revenue: summary?.total_revenue || 0,
-              avg_order_value: summary?.avg_order_value || 0
+              orders_count: (summary as any)?.orders_count || 0,
+              total_revenue: (summary as any)?.total_revenue || 0,
+              avg_order_value: (summary as any)?.avg_order_value || 0
             }
           })
         )
@@ -136,7 +136,7 @@ export default function AdminReportsPage() {
     const element = document.getElementById('report-analytics-section')
     if (!element) return
 
-    const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#0a0a0f' })
+    const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#FAF8F5' })
     const imgData = canvas.toDataURL('image/png')
     const pdf = new jsPDF('p', 'mm', 'a4')
     const imgWidth = 210
@@ -165,11 +165,9 @@ export default function AdminReportsPage() {
     <div className="animate-in" id="report-analytics-section">
       {/* Header and filters */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '28px' }}>
-        <div>
-          <h1 style={{ fontSize: '26px', fontWeight: 800 }}>Reports & Analytics</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
-            System-wide sales, tax collections, payment modes, and performance leaderboards.
-          </p>
+        <div className="page-header" style={{ marginBottom: 0 }}>
+          <h1>Reports &amp; Analytics</h1>
+          <p>System-wide sales, tax collections, payment modes, and performance leaderboards.</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -181,7 +179,7 @@ export default function AdminReportsPage() {
               onChange={(e) => setFromDate(e.target.value)}
               style={{ minHeight: '36px', padding: '6px 12px', width: '150px' }}
             />
-            <span style={{ color: 'var(--text-muted)' }}>to</span>
+            <span style={{ color: 'var(--charcoal-soft)', fontSize: '13px' }}>to</span>
             <input
               id="report-to-date"
               type="date"
@@ -197,7 +195,7 @@ export default function AdminReportsPage() {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '100px', fontSize: '16px', color: 'var(--text-secondary)' }}>
+        <div style={{ textAlign: 'center', padding: '100px', fontSize: '16px', color: 'var(--charcoal-soft)' }}>
           Computing analytics data...
         </div>
       ) : (
@@ -205,24 +203,30 @@ export default function AdminReportsPage() {
           {/* Summary KPIs */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
             <div className="kpi-card" id="rep-kpi-rev">
-              <span style={{ fontSize: '24px' }}>📊</span>
+              <div style={{ width:40, height:40, borderRadius:10, background:'var(--accent-bg)', border:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-dark)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+              </div>
               <div>
-                <div style={{ fontSize: '28px', fontWeight: 800 }}>{formatCurrency(totalRevenue, currency)}</div>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>Total Sales (Paid)</div>
+                <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--charcoal)', letterSpacing:'-0.03em' }}>{formatCurrency(totalRevenue, currency)}</div>
+                <div style={{ fontSize: '13px', color: 'var(--charcoal-soft)', marginTop: '2px' }}>Total Sales (Paid)</div>
               </div>
             </div>
             <div className="kpi-card" id="rep-kpi-tax">
-              <span style={{ fontSize: '24px' }}>🛡</span>
+              <div style={{ width:40, height:40, borderRadius:10, background:'var(--info-bg)', border:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--info)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              </div>
               <div>
-                <div style={{ fontSize: '28px', fontWeight: 800 }}>{formatCurrency(totalTax, currency)}</div>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>Tax Collected</div>
+                <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--charcoal)', letterSpacing:'-0.03em' }}>{formatCurrency(totalTax, currency)}</div>
+                <div style={{ fontSize: '13px', color: 'var(--charcoal-soft)', marginTop: '2px' }}>Tax Collected</div>
               </div>
             </div>
             <div className="kpi-card" id="rep-kpi-orders">
-              <span style={{ fontSize: '24px' }}>🧾</span>
+              <div style={{ width:40, height:40, borderRadius:10, background:'var(--success-bg)', border:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+              </div>
               <div>
-                <div style={{ fontSize: '28px', fontWeight: 800 }}>{totalOrders}</div>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>Total Orders Taken</div>
+                <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--charcoal)', letterSpacing:'-0.03em' }}>{totalOrders}</div>
+                <div style={{ fontSize: '13px', color: 'var(--charcoal-soft)', marginTop: '2px' }}>Total Orders Taken</div>
               </div>
             </div>
           </div>
@@ -231,18 +235,19 @@ export default function AdminReportsPage() {
           <div className="surface-card" style={{ padding: '24px' }}>
             <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '20px' }}>Daily Sales Trend</h3>
             {analytics.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>No sales transactions in this period</div>
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--charcoal-soft)' }}>No sales transactions in this period</div>
             ) : (
               <ResponsiveContainer width="100%" height={240}>
                 <LineChart data={analytics} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="day" tick={{ fill: '#64748b', fontSize: 11 }} />
-                  <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="day" tick={{ fill: 'var(--charcoal-soft)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'var(--charcoal-soft)', fontSize: 11 }} axisLine={false} tickLine={false} />
                   <Tooltip
-                    contentStyle={{ background: '#1e1e27', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#f8fafc' }}
+                    contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--charcoal)', boxShadow: 'var(--shadow-md)', fontSize: 13 }}
+                    cursor={{ stroke: 'var(--border-strong)' }}
                     formatter={(v: any) => [formatCurrency(v, currency), 'Revenue']}
                   />
-                  <Line type="monotone" dataKey="revenue" stroke="#f97316" strokeWidth={3} dot={{ fill: '#f97316' }} />
+                  <Line type="monotone" dataKey="revenue" stroke="var(--accent)" strokeWidth={2.5} dot={{ fill: 'var(--accent)', r: 4 }} />
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -265,11 +270,11 @@ export default function AdminReportsPage() {
                   <tbody>
                     {leaderboard.map((item, idx) => (
                       <tr key={idx}>
-                        <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                        <td style={{ fontWeight: 600, color: 'var(--charcoal)' }}>
                           {idx + 1}. {item.name} <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>@{item.username}</span>
                         </td>
                         <td>{item.orders_count}</td>
-                        <td style={{ fontWeight: 'bold' }}>{formatCurrency(item.total_revenue, currency)}</td>
+                        <td style={{ fontWeight: 600 }}>{formatCurrency(item.total_revenue, currency)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -292,11 +297,11 @@ export default function AdminReportsPage() {
                   <tbody>
                     {payments.map((p, idx) => (
                       <tr key={idx}>
-                        <td style={{ fontWeight: 600, color: 'var(--text-primary)', textTransform: 'capitalize' }}>
+                        <td style={{ fontWeight: 600, color: 'var(--charcoal)', textTransform: 'capitalize' }}>
                           {p.method.replace('_', ' ')}
                         </td>
                         <td>{p.count}</td>
-                        <td style={{ fontWeight: 'bold' }}>{formatCurrency(p.total, currency)}</td>
+                        <td style={{ fontWeight: 600 }}>{formatCurrency(p.total, currency)}</td>
                       </tr>
                     ))}
                   </tbody>

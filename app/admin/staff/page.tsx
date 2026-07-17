@@ -20,9 +20,9 @@ export default async function AdminStaffPage() {
   return (
     <div className="animate-in">
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'28px' }}>
-        <div>
-          <h1 style={{ fontSize:'26px', fontWeight:800 }}>Staff Management</h1>
-          <p style={{ color:'var(--text-muted)', fontSize:'14px', marginTop:'4px' }}>{staff?.length ?? 0} staff members</p>
+        <div className="page-header" style={{ marginBottom: 0 }}>
+          <h1>Staff Management</h1>
+          <p>{staff?.length ?? 0} staff members</p>
         </div>
         <Link id="add-staff-btn" href="/admin/staff/new" className="btn btn-primary" style={{ textDecoration:'none' }}>+ Add Staff</Link>
       </div>
@@ -45,17 +45,17 @@ export default async function AdminStaffPage() {
               <tr key={s.id}>
                 <td>
                   <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
-                    <div style={{ width:36, height:36, borderRadius:'50%', background:'linear-gradient(135deg,#f97316,#c2410c)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:'14px', color:'#fff', flexShrink:0 }}>
+                    <div style={{ width:36, height:36, borderRadius:'50%', background:'var(--accent-bg)', border:'1.5px solid var(--border-strong)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:'13px', color:'var(--accent-dark)', flexShrink:0 }}>
                       {s.name.charAt(0).toUpperCase()}
                     </div>
-                    <span style={{ fontWeight:600, color:'var(--text-primary)' }}>{s.name}</span>
+                    <span style={{ fontWeight:600, color:'var(--charcoal)' }}>{s.name}</span>
                   </div>
                 </td>
                 <td style={{ fontFamily:'monospace', fontSize:'13px' }}>@{s.username}</td>
                 <td>{(s.role as any)?.name ? <span className="badge badge-blue">{(s.role as any).name}</span> : '—'}</td>
-                <td style={{ fontSize:'13px' }}>{s.email || s.phone || <span style={{ color:'var(--text-muted)' }}>—</span>}</td>
+                <td style={{ fontSize:'13px' }}>{s.email || s.phone || <span style={{ color:'var(--charcoal-soft)' }}>—</span>}</td>
                 <td><span className={`badge ${STATUS_CLASS[s.status] ?? 'badge-gray'}`}>{s.status}</span></td>
-                <td style={{ fontSize:'13px', color:'var(--text-muted)' }}>{new Date(s.created_at).toLocaleDateString()}</td>
+                <td style={{ fontSize:'13px', color:'var(--charcoal-soft)' }}>{new Date(s.created_at).toLocaleDateString()}</td>
                 <td>
                   <div style={{ display:'flex', gap:'8px' }}>
                     <Link href={`/admin/staff/${s.id}`} className="btn btn-secondary btn-sm" style={{ textDecoration:'none' }}>View</Link>
@@ -67,9 +67,9 @@ export default async function AdminStaffPage() {
           </tbody>
         </table>
         {(staff?.length ?? 0) === 0 && (
-          <div style={{ textAlign:'center', padding:'48px', color:'var(--text-muted)' }}>
-            <div style={{ fontSize:'32px', marginBottom:'12px' }}>👥</div>
-            <p>No staff members yet. <Link href="/admin/staff/new" style={{ color:'var(--brand-400)' }}>Add the first one</Link>.</p>
+          <div style={{ textAlign:'center', padding:'48px', color:'var(--charcoal-soft)' }}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--charcoal-faint)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin:'0 auto 12px', display:'block' }}><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            <p style={{ fontSize:'14px' }}>No staff members yet. <Link href="/admin/staff/new" style={{ color:'var(--accent-dark)', textDecoration:'underline' }}>Add the first one</Link>.</p>
           </div>
         )}
       </div>

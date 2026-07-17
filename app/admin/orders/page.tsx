@@ -78,13 +78,9 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="animate-in">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
-        <div>
-          <h1 style={{ fontSize: '26px', fontWeight: 800 }}>Orders Oversight</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
-            Real-time view of all restaurant transactions, billing status, and table sessions.
-          </p>
-        </div>
+      <div className="page-header">
+        <h1>Orders Oversight</h1>
+        <p>Real-time view of all restaurant transactions, billing status, and table sessions.</p>
       </div>
 
       {error && <div className="badge badge-red" style={{ padding: '10px', borderRadius: '8px', marginBottom: '16px' }}>{error}</div>}
@@ -157,8 +153,8 @@ export default function AdminOrdersPage() {
                       <span className="badge badge-blue">{o.order_type}</span>
                     )}
                   </td>
-                  <td>{o.staff?.name || <span style={{ color: 'var(--text-muted)' }}>System</span>}</td>
-                  <td style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>
+                  <td>{o.staff?.name || <span style={{ color: 'var(--charcoal-soft)' }}>System</span>}</td>
+                  <td style={{ fontWeight: 600, color: 'var(--charcoal)' }}>
                     {formatCurrency(o.total, currency)}
                   </td>
                   <td>
@@ -177,9 +173,9 @@ export default function AdminOrdersPage() {
           </table>
         )}
         {!loading && orders.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
-            <div style={{ fontSize: '32px', marginBottom: '12px' }}>🗒</div>
-            <p>No orders found matching the filter criteria.</p>
+          <div style={{ textAlign: 'center', padding: '48px', color: 'var(--charcoal-soft)' }}>
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--charcoal-faint)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 12px', display: 'block' }}><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+            <p style={{ fontSize: '14px' }}>No orders found matching the filter criteria.</p>
           </div>
         )}
       </div>

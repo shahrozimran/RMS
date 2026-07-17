@@ -14,12 +14,12 @@ export default async function AdminMenuPage() {
   return (
     <div className="animate-in">
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'28px' }}>
-        <div>
-          <h1 style={{ fontSize:'26px', fontWeight:800 }}>Menu Management</h1>
-          <p style={{ color:'var(--text-muted)', fontSize:'14px', marginTop:'4px' }}>{products?.length ?? 0} items across {categories?.length ?? 0} categories</p>
+        <div className="page-header" style={{ marginBottom: 0 }}>
+          <h1>Menu Management</h1>
+          <p>{products?.length ?? 0} items across {categories?.length ?? 0} categories</p>
         </div>
         <div style={{ display:'flex', gap:'12px' }}>
-          <Link href="/admin/menu/categories" className="btn btn-secondary" style={{ textDecoration:'none' }}>📁 Categories</Link>
+          <Link href="/admin/menu/categories" className="btn btn-secondary" style={{ textDecoration:'none' }}>Categories</Link>
           <Link id="add-product-btn" href="/admin/menu/new" className="btn btn-primary" style={{ textDecoration:'none' }}>+ Add Item</Link>
         </div>
       </div>
@@ -44,17 +44,19 @@ export default async function AdminMenuPage() {
                   <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
                     {p.image_url
                       ? <img src={p.image_url} alt={p.name} style={{ width:40, height:40, borderRadius:8, objectFit:'cover', flexShrink:0 }} />
-                      : <div style={{ width:40, height:40, borderRadius:8, background:'var(--surface-4)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px', flexShrink:0 }}>🍽</div>
+                      : <div style={{ width:40, height:40, borderRadius:8, background:'var(--surface-raised)', border:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--charcoal-faint)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a4 4 0 014 4c0 1.5-.5 2.8-1.4 3.8L16 21H8l1.4-11.2A5.97 5.97 0 018 6a4 4 0 014-4z"/><path d="M6 21h12"/></svg>
+                        </div>
                     }
                     <div>
-                      <div style={{ fontWeight:600, color:'var(--text-primary)' }}>{p.name}</div>
-                      <div style={{ fontSize:'12px', color:'var(--text-muted)', maxWidth:'240px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.description}</div>
+                      <div style={{ fontWeight:600, color:'var(--charcoal)' }}>{p.name}</div>
+                      <div style={{ fontSize:'12px', color:'var(--charcoal-soft)', maxWidth:'240px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.description}</div>
                     </div>
                   </div>
                 </td>
                 <td>{(p.category as any)?.name ?? '—'}</td>
-                <td style={{ fontWeight:600, color:'var(--text-primary)' }}>${Number(p.base_price).toFixed(2)}</td>
-                <td>{p.tax_rate > 0 ? <span className="badge badge-blue">{p.tax_rate}%</span> : <span style={{ color:'var(--text-muted)' }}>0%</span>}</td>
+                <td style={{ fontWeight:600, color:'var(--charcoal)' }}>${Number(p.base_price).toFixed(2)}</td>
+                <td>{p.tax_rate > 0 ? <span className="badge badge-blue">{p.tax_rate}%</span> : <span style={{ color:'var(--charcoal-soft)' }}>0%</span>}</td>
                 <td>
                   {p.is_86d
                     ? <span className="badge badge-red">86'd</span>
@@ -74,9 +76,9 @@ export default async function AdminMenuPage() {
           </tbody>
         </table>
         {(products?.length ?? 0) === 0 && (
-          <div style={{ textAlign:'center', padding:'48px', color:'var(--text-muted)' }}>
-            <div style={{ fontSize:'32px', marginBottom:'12px' }}>🍽</div>
-            <p>No menu items yet. <Link href="/admin/menu/new" style={{ color:'var(--brand-400)' }}>Add the first one</Link>.</p>
+          <div style={{ textAlign:'center', padding:'48px', color:'var(--charcoal-soft)' }}>
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--charcoal-faint)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin:'0 auto 12px', display:'block' }}><path d="M12 2a4 4 0 014 4c0 1.5-.5 2.8-1.4 3.8L16 21H8l1.4-11.2A5.97 5.97 0 018 6a4 4 0 014-4z"/><path d="M6 21h12"/></svg>
+            <p style={{ fontSize:'14px' }}>No menu items yet. <Link href="/admin/menu/new" style={{ color:'var(--accent-dark)', textDecoration:'underline' }}>Add the first one</Link>.</p>
           </div>
         )}
       </div>

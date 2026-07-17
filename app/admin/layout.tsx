@@ -12,22 +12,21 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (session.authType !== 'admin') redirect('/staff/dashboard')
 
   return (
-    <div style={{ display: 'flex', minHeight: '100dvh' }}>
+    <div style={{ display: 'flex', minHeight: '100dvh', background: 'var(--canvas)' }}>
       <AdminSidebar user={{ name: session.name, role: session.role }} />
-      <main style={{
-        flex: 1,
-        marginLeft: 'var(--sidebar-width)',
-        padding: '28px',
-        minWidth: 0,
-        transition: 'margin-left 0.25s ease'
-      }}>
+      <main
+        className="admin-main"
+        style={{
+          flex: 1,
+          marginLeft: 'var(--sidebar-width)',
+          padding: '32px 28px',
+          minWidth: 0,
+          transition: 'margin-left 0.25s ease',
+          background: 'var(--canvas)',
+        }}
+      >
         {children}
       </main>
-      <style>{`
-        @media (max-width: 1024px) {
-          main { margin-left: var(--sidebar-collapsed) !important; }
-        }
-      `}</style>
     </div>
   )
 }

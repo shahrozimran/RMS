@@ -11,9 +11,9 @@ export default async function StaffLayout({ children }: { children: React.ReactN
   if (session.authType === 'admin') redirect('/admin/dashboard')
 
   return (
-    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--surface-0)' }}>
+    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--canvas)' }}>
       <StaffTopBar user={{ name: session.name, role: session.role }} />
-      <main style={{ flex: 1, padding: '20px', maxWidth: '1200px', width: '100%', margin: '0 auto' }}>
+      <main style={{ flex: 1, padding: '28px 24px', maxWidth: '1200px', width: '100%', margin: '0 auto' }}>
         {children}
       </main>
     </div>

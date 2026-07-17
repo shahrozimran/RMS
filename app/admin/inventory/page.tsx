@@ -150,14 +150,12 @@ export default function AdminInventoryPage() {
   return (
     <div className="animate-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
-        <div>
-          <h1 style={{ fontSize: '26px', fontWeight: 800 }}>Inventory / Stock</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
-            Manage raw ingredient stock, reorder levels, and menu item recipes.
-          </p>
+        <div className="page-header" style={{ marginBottom: 0 }}>
+          <h1>Inventory / Stock</h1>
+          <p>Manage raw ingredient stock, reorder levels, and menu item recipes.</p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <Link href="/admin/inventory/recipes" className="btn btn-secondary" style={{ textDecoration: 'none' }}>🍽 Recipe Builder</Link>
+          <Link href="/admin/inventory/recipes" className="btn btn-secondary" style={{ textDecoration: 'none' }}>Recipe Builder</Link>
           <button id="add-ingredient-toggle-btn" className="btn btn-primary" onClick={() => setShowAddForm(!showAddForm)}>
             {showAddForm ? 'Close Form' : '+ New Ingredient'}
           </button>
@@ -191,9 +189,9 @@ export default function AdminInventoryPage() {
                   const isOut = Number(item.quantity_available) <= 0
                   return (
                     <tr key={item.id}>
-                      <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{item.name}</td>
+                      <td style={{ fontWeight: 600, color: 'var(--charcoal)' }}>{item.name}</td>
                       <td>{item.unit}</td>
-                      <td style={{ fontWeight: 'bold' }}>{Number(item.quantity_available).toFixed(2)}</td>
+                      <td style={{ fontWeight: 600 }}>{Number(item.quantity_available).toFixed(2)}</td>
                       <td>{Number(item.reorder_threshold).toFixed(2)}</td>
                       <td>${item.cost_per_unit ? Number(item.cost_per_unit).toFixed(2) : '0.00'}</td>
                       <td>
@@ -210,7 +208,7 @@ export default function AdminInventoryPage() {
                           className="btn btn-secondary btn-sm"
                           onClick={() => setSelectedIngredient(item)}
                         >
-                          ➕ Replenish
+                          Replenish
                         </button>
                       </td>
                     </tr>

@@ -111,11 +111,9 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="animate-in">
-      <div style={{ marginBottom: '28px' }}>
-        <h1 style={{ fontSize: '26px', fontWeight: 800 }}>System Settings</h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
-          Configure restaurant profiles, billing parameters, currency format and checkout options.
-        </p>
+      <div className="page-header">
+        <h1>System Settings</h1>
+        <p>Configure restaurant profiles, billing parameters, currency format and checkout options.</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: '24px', alignItems: 'start' }}>
@@ -126,21 +124,21 @@ export default function AdminSettingsPage() {
             onClick={() => { setActiveTab('profile'); setError(''); setSuccess('') }}
             style={{ border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', width: '100%' }}
           >
-            🏢 Restaurant Profile
+            Restaurant Profile
           </button>
           <button
             className={`sidebar-link ${activeTab === 'currency' ? 'active' : ''}`}
             onClick={() => { setActiveTab('currency'); setError(''); setSuccess('') }}
             style={{ border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', width: '100%' }}
           >
-            🪙 Currency & Charges
+            Currency &amp; Charges
           </button>
           <button
             className={`sidebar-link ${activeTab === 'payments' ? 'active' : ''}`}
             onClick={() => { setActiveTab('payments'); setError(''); setSuccess('') }}
             style={{ border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', width: '100%' }}
           >
-            💳 Payment Methods
+            Payment Methods
           </button>
         </div>
 
@@ -242,7 +240,7 @@ export default function AdminSettingsPage() {
                         type="checkbox"
                         checked={cashEnabled}
                         onChange={(e) => setCashEnabled(e.target.checked)}
-                        style={{ width: '18px', height: '18px', accentColor: 'var(--brand-500)' }}
+                        style={{ width: '18px', height: '18px', accentColor: 'var(--accent)' }}
                       />
                       Enable Cash Payment (Calculates change)
                     </label>
@@ -251,7 +249,7 @@ export default function AdminSettingsPage() {
                         type="checkbox"
                         checked={cardEnabled}
                         onChange={(e) => setCardEnabled(e.target.checked)}
-                        style={{ width: '18px', height: '18px', accentColor: 'var(--brand-500)' }}
+                        style={{ width: '18px', height: '18px', accentColor: 'var(--accent)' }}
                       />
                       Enable Card Payment
                     </label>
@@ -260,7 +258,7 @@ export default function AdminSettingsPage() {
                         type="checkbox"
                         checked={upiEnabled}
                         onChange={(e) => setUpiEnabled(e.target.checked)}
-                        style={{ width: '18px', height: '18px', accentColor: 'var(--brand-500)' }}
+                        style={{ width: '18px', height: '18px', accentColor: 'var(--accent)' }}
                       />
                       Enable UPI / QR Code Online Transfers
                     </label>

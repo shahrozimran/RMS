@@ -121,13 +121,9 @@ export default function AdminTablesPage() {
 
   return (
     <div className="animate-in">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
-        <div>
-          <h1 style={{ fontSize: '26px', fontWeight: 800 }}>Table Management</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
-            Monitor and configure your restaurant floor layout.
-          </p>
-        </div>
+      <div className="page-header">
+        <h1>Table Management</h1>
+        <p>Monitor and configure your restaurant floor layout.</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '24px', alignItems: 'start' }}>
@@ -148,9 +144,9 @@ export default function AdminTablesPage() {
                   className={`table-card ${t.status}`}
                   onClick={() => updateTableStatus(t.id, t.status)}
                 >
-                  <span style={{ fontSize: '24px' }}>🪑</span>
-                  <span style={{ fontSize: '16px', fontWeight: 'bold' }}>{t.table_number}</span>
-                  <span style={{ fontSize: '11px', opacity: 0.8 }}>Cap: {t.capacity || 4}</span>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="7" width="18" height="3" rx="1"/><path d="M6 10v7M18 10v7M3 17h18"/></svg>
+                  <span style={{ fontSize: '16px', fontWeight: 700 }}>{t.table_number}</span>
+                  <span style={{ fontSize: '11px', opacity: 0.7 }}>Cap: {t.capacity || 4}</span>
                   <span className={`badge ${
                     t.status === 'free' ? 'badge-green' :
                     t.status === 'occupied' ? 'badge-red' :
@@ -162,10 +158,10 @@ export default function AdminTablesPage() {
               ))}
             </div>
           )}
-          <div style={{ marginTop: '24px', padding: '12px', background: 'var(--surface-3)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-muted)', display: 'flex', gap: '16px', justifyContent: 'center' }}>
-            <span>🟢 Click Green table to Reserve</span>
-            <span>🟡 Click Yellow table to Clean</span>
-            <span>⚫ Click Grey table to Free</span>
+          <div style={{ marginTop: '24px', padding: '12px 16px', background: 'var(--surface-raised)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--charcoal-soft)', display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <span>● Green — click to Reserve</span>
+            <span>● Yellow — click to Clean</span>
+            <span>● Grey — click to Free</span>
           </div>
         </div>
 
@@ -198,7 +194,7 @@ export default function AdminTablesPage() {
               {saving ? 'Saving...' : 'Sync Tables'}
             </button>
           </form>
-          <div style={{ marginTop: '16px', fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+          <div style={{ marginTop: '16px', fontSize: '12px', color: 'var(--charcoal-soft)', lineHeight: '1.6' }}>
             <strong>Note:</strong> Increasing the count creates new tables (e.g. T11, T12). Decreasing the count removes empty tables from the end. Tables that are currently occupied will never be deleted.
           </div>
         </div>

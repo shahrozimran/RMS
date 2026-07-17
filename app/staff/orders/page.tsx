@@ -72,14 +72,12 @@ export default function StaffOrdersPage() {
   return (
     <div className="animate-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
-        <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800 }}>My Orders History</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
-            View and manage your shift orders.
-          </p>
+        <div className="page-header" style={{ marginBottom: 0 }}>
+          <h1>My Orders</h1>
+          <p>View and manage your shift orders.</p>
         </div>
         <Link id="new-order-float-btn" href="/staff/orders/new" className="btn btn-primary">
-          ＋ New Order
+          + New Order
         </Link>
       </div>
 
@@ -114,7 +112,7 @@ export default function StaffOrdersPage() {
                       <span className="badge badge-blue">{o.order_type}</span>
                     )}
                   </td>
-                  <td style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>
+                  <td style={{ fontWeight: 600, color: 'var(--charcoal)' }}>
                     {formatCurrency(o.total, currency)}
                   </td>
                   <td>
@@ -133,9 +131,9 @@ export default function StaffOrdersPage() {
           </table>
         )}
         {!loading && orders.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
-            <div style={{ fontSize: '32px', marginBottom: '12px' }}>🗒</div>
-            <p>You haven't taken any orders in this session yet.</p>
+          <div style={{ textAlign: 'center', padding: '48px', color: 'var(--charcoal-soft)' }}>
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--charcoal-faint)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin:'0 auto 12px', display:'block' }}><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+            <p style={{ fontSize:'14px' }}>You haven't taken any orders in this session yet.</p>
           </div>
         )}
       </div>
