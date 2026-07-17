@@ -51,12 +51,17 @@ export const resetPasswordSchema = z.object({
 
 // ─── ORDERS ──────────────────────────────────────────────────
 export const orderItemSchema = z.object({
-  product_id:    z.string().uuid(),
-  variant_label: z.string().optional().nullable(),
-  quantity:      z.number().int().min(1),
-  unit_price:    z.number().min(0),
-  tax_rate:      z.number().min(0).max(100).default(0),
-  notes:         z.string().max(200).optional().nullable(),
+  product_id:         z.string().uuid(),
+  variant_label:      z.string().optional().nullable(),
+  quantity:           z.number().int().min(1),
+  unit_price:         z.number().min(0),
+  tax_rate:           z.number().min(0).max(100).default(0),
+  notes:              z.string().max(200).optional().nullable(),
+  selected_modifiers: z.array(z.object({
+    id:    z.number().int(),
+    name:  z.string(),
+    price: z.number().min(0)
+  })).optional().default([])
 })
 
 export const createOrderSchema = z.object({

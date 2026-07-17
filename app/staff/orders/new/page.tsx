@@ -11,6 +11,12 @@ interface Category {
   name: string
 }
 
+interface Modifier {
+  id: number
+  name: string
+  price: number
+}
+
 interface Product {
   id: string
   name: string
@@ -21,6 +27,8 @@ interface Product {
   image_url: string | null
   is_available: boolean
   is_86d: boolean
+  category_id: number | null
+  modifiers?: Modifier[]
 }
 
 interface Table {
@@ -37,6 +45,7 @@ interface CartItem {
   unit_price: number
   tax_rate: number
   notes: string
+  selected_modifiers: Modifier[]
 }
 
 export default function StaffNewOrderPage() {
@@ -56,6 +65,11 @@ export default function StaffNewOrderPage() {
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerAddress, setCustomerAddress] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Modifiers config overlay
+  const [activeModProduct, setActiveModProduct] = useState<Product | null>(null)
+  const [activeModVariant, setActiveModVariant] = useState<{ label: string; price: number } | null>(null)
+  const [selectedModsForActiveProduct, setSelectedModsForActiveProduct] = useState<Modifier[]>([])
 
   // Cart state
   const [cart, setCart] = useState<CartItem[]>([])
@@ -77,7 +91,7 @@ export default function StaffNewOrderPage() {
     try {
       const [categoriesRes, productsRes, tablesRes, settingsRes] = await Promise.all([
         supabase.from('categories').select('*').order('sort_order', { ascending: true }),
-        supabase.from('products').select('*').eq('is_available', true).eq('is_86d', false),
+        supabase.from('products').select('*, modifiers(*)').eq('is_available', true).eq('is_86d', false),
         supabase.from('tables').select('*').order('id', { ascending: true }),
         supabase.from('system_settings').select('key, value').in('key', ['currency', 'service_charge'])
       ])
@@ -107,10 +121,87 @@ export default function StaffNewOrderPage() {
     }
   }
 
+  // Modifiers triggers
+  const handleProductSelect = (product: Product) => {
+    const prodMods = product.modifiers || []
+    
+    if (prodMods.length > 0) {
+      setActiveModProduct(product)
+      setActiveModVariant(null)
+      setSelectedModsForActiveProduct([])
+    } else {
+      addToCart(product)
+    }
+  }
+
+  const handleVariantSelect = (product: Product, variant: { label: string; price: number }) => {
+    const prodMods = product.modifiers || []
+    
+    if (prodMods.length > 0) {
+      setActiveModProduct(product)
+      setActiveModVariant(variant)
+      setSelectedModsForActiveProduct([])
+    } else {
+      addToCart(product, variant.label, variant.price)
+    }
+  }
+
+  const toggleModifierSelection = (mod: Modifier) => {
+    if (selectedModsForActiveProduct.some(m => m.id === mod.id)) {
+      setSelectedModsForActiveProduct(prev => prev.filter(m => m.id !== mod.id))
+    } else {
+      setSelectedModsForActiveProduct(prev => [...prev, mod])
+    }
+  }
+
+  const addProductWithModifiersToCart = () => {
+    if (!activeModProduct) return
+
+    const basePrice = activeModVariant ? activeModVariant.price : activeModProduct.base_price
+    const modifiersTotal = selectedModsForActiveProduct.reduce((sum, m) => sum + Number(m.price), 0)
+    const finalUnitPrice = basePrice + modifiersTotal
+    const variantLabel = activeModVariant ? activeModVariant.label : null
+
+    // Unique cart item check including selected modifiers list
+    const modString = selectedModsForActiveProduct.map(m => m.id).sort().join(',')
+    const existingIndex = cart.findIndex(
+      item => 
+        item.product_id === activeModProduct.id && 
+        item.variant_label === variantLabel && 
+        item.selected_modifiers.map(m => m.id).sort().join(',') === modString
+    )
+
+    if (existingIndex > -1) {
+      const updated = [...cart]
+      updated[existingIndex].quantity += 1
+      setCart(updated)
+    } else {
+      setCart([...cart, {
+        product_id: activeModProduct.id,
+        product_name: activeModProduct.name,
+        variant_label: variantLabel,
+        quantity: 1,
+        unit_price: finalUnitPrice,
+        tax_rate: activeModProduct.tax_rate,
+        notes: '',
+        selected_modifiers: selectedModsForActiveProduct
+      }])
+    }
+
+    // Reset overlay
+    setActiveModProduct(null)
+    setActiveModVariant(null)
+    setSelectedModsForActiveProduct([])
+  }
+
+  // Base Cart functions
   const addToCart = (product: Product, variantLabel: string | null = null, priceOverride: number | null = null) => {
     const price = priceOverride ?? product.base_price
     const existingIndex = cart.findIndex(
-      item => item.product_id === product.id && item.variant_label === variantLabel
+      item => 
+        item.product_id === product.id && 
+        item.variant_label === variantLabel &&
+        item.selected_modifiers.length === 0
     )
 
     if (existingIndex > -1) {
@@ -125,7 +216,8 @@ export default function StaffNewOrderPage() {
         quantity: 1,
         unit_price: price,
         tax_rate: product.tax_rate,
-        notes: ''
+        notes: '',
+        selected_modifiers: []
       }])
     }
   }
@@ -164,7 +256,8 @@ export default function StaffNewOrderPage() {
           quantity: i.quantity,
           unit_price: i.unit_price,
           tax_rate: i.tax_rate,
-          notes: i.notes || null
+          notes: i.notes || null,
+          selected_modifiers: i.selected_modifiers
         }))
       }
 
@@ -174,7 +267,7 @@ export default function StaffNewOrderPage() {
         body: JSON.stringify(orderPayload)
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      if (!res.ok) throw new Error(data.error || 'Failed to place order')
 
       router.push(`/staff/orders/${data.data.id}`)
       router.refresh()
@@ -210,8 +303,9 @@ export default function StaffNewOrderPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {/* Order Setup Options */}
         <div className="surface-card" style={{ padding: '20px' }}>
-          <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '14px' }}>Order Mode</h3>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '14px' }}>Order Mode &amp; Setup</h3>
+          
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
             {['dine_in', 'takeaway', 'delivery'].map(type => (
               <button
                 key={type}
@@ -222,6 +316,18 @@ export default function StaffNewOrderPage() {
                 {type === 'dine_in' ? '🍽 Dine-in' : type === 'takeaway' ? '🥡 Takeaway' : '🛵 Delivery'}
               </button>
             ))}
+          </div>
+
+          {/* Customer Details — always visible */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+            <div className="input-group">
+              <label className="input-label" htmlFor="cust-name">Customer Name</label>
+              <input id="cust-name" className="input" type="text" value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Customer name" />
+            </div>
+            <div className="input-group">
+              <label className="input-label" htmlFor="cust-phone">Phone Number</label>
+              <input id="cust-phone" className="input" type="text" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="Optional" />
+            </div>
           </div>
 
           {orderType === 'dine_in' && (
@@ -250,21 +356,9 @@ export default function StaffNewOrderPage() {
           )}
 
           {orderType === 'delivery' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div className="input-group">
-                  <label className="input-label" htmlFor="cust-name">Customer Name</label>
-                  <input id="cust-name" className="input" type="text" value={customerName} onChange={e => setCustomerName(e.target.value)} />
-                </div>
-                <div className="input-group">
-                  <label className="input-label" htmlFor="cust-phone">Phone</label>
-                  <input id="cust-phone" className="input" type="text" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} />
-                </div>
-              </div>
-              <div className="input-group">
-                <label className="input-label" htmlFor="cust-address">Delivery Address</label>
-                <input id="cust-address" className="input" type="text" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} />
-              </div>
+            <div className="input-group">
+              <label className="input-label" htmlFor="cust-address">Delivery Address</label>
+              <input id="cust-address" className="input" type="text" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} placeholder="Enter full address" />
             </div>
           )}
         </div>
@@ -283,7 +377,7 @@ export default function StaffNewOrderPage() {
             />
           </div>
 
-          {/* Categories Horizontal scrolling tabs */}
+          {/* CategoriesHorizontal scrolling tabs */}
           <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px' }}>
             {categories.map(c => (
               <button
@@ -316,7 +410,7 @@ export default function StaffNewOrderPage() {
                     </div>
                   )}
                   <h4 style={{ fontSize: '13px', fontWeight: 600 }}>{p.name}</h4>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Tax: {p.tax_rate}%</div>
+                  <div style={{ fontSize: '11px', color: 'var(--charcoal-soft)', marginTop: '2px' }}>Tax: {p.tax_rate}%</div>
                 </div>
 
                 <div style={{ marginTop: '10px' }}>
@@ -326,7 +420,7 @@ export default function StaffNewOrderPage() {
                         <button
                           key={idx}
                           className="btn btn-secondary btn-sm"
-                          onClick={() => addToCart(p, v.label, v.price)}
+                          onClick={() => handleVariantSelect(p, v)}
                           style={{ width: '100%', padding: '4px 8px', minHeight: '28px', fontSize: '11px' }}
                         >
                           {v.label} - {formatCurrency(v.price, currency)}
@@ -336,7 +430,7 @@ export default function StaffNewOrderPage() {
                   ) : (
                     <button
                       className="btn btn-primary btn-sm"
-                      onClick={() => addToCart(p)}
+                      onClick={() => handleProductSelect(p)}
                       style={{ width: '100%' }}
                     >
                       {formatCurrency(p.base_price, currency)}
@@ -356,7 +450,7 @@ export default function StaffNewOrderPage() {
         {/* Cart items list */}
         <div style={{ flex: 1, overflowY: 'auto', marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {cart.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', fontSize: '13px' }}>
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--charcoal-soft)', fontSize: '13px' }}>
               Your order is empty. Select items to add them.
             </div>
           ) : (
@@ -364,16 +458,21 @@ export default function StaffNewOrderPage() {
               <div key={idx} style={{ paddingBottom: '10px', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                   <div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--charcoal)' }}>
                       {item.product_name}
-                      {item.variant_label && <span style={{ color: 'var(--brand-400)', fontSize: '11px' }}> ({item.variant_label})</span>}
+                      {item.variant_label && <span style={{ color: 'var(--accent-dark)', fontSize: '11px' }}> ({item.variant_label})</span>}
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    {item.selected_modifiers.length > 0 && (
+                      <div style={{ fontSize: '11px', color: 'var(--charcoal-soft)', marginTop: '2px' }}>
+                        Mods: {item.selected_modifiers.map(m => m.name).join(', ')}
+                      </div>
+                    )}
+                    <div style={{ fontSize: '11px', color: 'var(--charcoal-soft)', marginTop: '2px' }}>
                       Price: {formatCurrency(item.unit_price, currency)} | Tax: {item.tax_rate}%
                     </div>
-                    {item.notes && <div style={{ fontSize: '11px', color: 'var(--brand-300)', fontStyle: 'italic' }}>* {item.notes}</div>}
+                    {item.notes && <div style={{ fontSize: '11px', color: 'var(--accent)', fontStyle: 'italic' }}>* {item.notes}</div>}
                   </div>
-                  <div style={{ fontWeight: 'bold', fontSize: '13px', color: 'var(--text-primary)' }}>
+                  <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--charcoal)' }}>
                     {formatCurrency(item.unit_price * item.quantity, currency)}
                   </div>
                 </div>
@@ -418,13 +517,7 @@ export default function StaffNewOrderPage() {
                 style={{ marginBottom: '12px' }}
               />
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setActiveNoteItemIndex(null)}
-                >
-                  Cancel
-                </button>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setActiveNoteItemIndex(null)}>Cancel</button>
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
@@ -442,27 +535,62 @@ export default function StaffNewOrderPage() {
           </div>
         )}
 
+        {/* Modifiers Selection Overlay */}
+        {activeModProduct && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100
+          }}>
+            <div className="surface-card animate-in" style={{ padding: '24px', width: '340px' }}>
+              <h4 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '8px' }}>Customize: {activeModProduct.name}</h4>
+              <p style={{ fontSize: '12px', color: 'var(--charcoal-soft)', marginBottom: '16px' }}>Select toppings/options below</p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '200px', overflowY: 'auto', marginBottom: '20px' }}>
+                {activeModProduct.modifiers?.map((m) => (
+                  <label key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', background: 'var(--surface-raised)', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedModsForActiveProduct.some(sm => sm.id === m.id)}
+                        onChange={() => toggleModifierSelection(m)}
+                        style={{ width: '16px', height: '16px', accentColor: 'var(--accent)' }}
+                      />
+                      <span>{m.name}</span>
+                    </div>
+                    <span style={{ fontWeight: 600, color: 'var(--accent-dark)' }}>+{formatCurrency(m.price, currency)}</span>
+                  </label>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setActiveModProduct(null); setActiveModVariant(null); }}>Cancel</button>
+                <button type="button" className="btn btn-primary btn-sm" onClick={addProductWithModifiersToCart}>Apply &amp; Add</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Bill summary and action */}
         {cart.length > 0 && (
           <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: 'var(--charcoal-soft)', marginBottom: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Subtotal:</span>
-                <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(taxSummary.subtotal, currency)}</span>
+                <span style={{ color: 'var(--charcoal)' }}>{formatCurrency(taxSummary.subtotal, currency)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Taxes:</span>
-                <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(taxSummary.total_tax, currency)}</span>
+                <span style={{ color: 'var(--charcoal)' }}>{formatCurrency(taxSummary.total_tax, currency)}</span>
               </div>
               {computedSC > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span>Service Charge:</span>
-                  <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(computedSC, currency)}</span>
+                  <span style={{ color: 'var(--charcoal)' }}>{formatCurrency(computedSC, currency)}</span>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '15px', borderTop: '1px dashed var(--border)', paddingTop: '8px', marginTop: '4px' }}>
-                <span style={{ color: 'var(--text-primary)' }}>Grand Total:</span>
-                <span style={{ color: 'var(--brand-400)' }}>{formatCurrency(computedTotal, currency)}</span>
+                <span style={{ color: 'var(--charcoal)' }}>Grand Total:</span>
+                <span style={{ color: 'var(--accent-dark)' }}>{formatCurrency(computedTotal, currency)}</span>
               </div>
             </div>
 
@@ -490,7 +618,7 @@ export default function StaffNewOrderPage() {
           <div className="surface-card animate-in" style={{ padding: '24px', width: '100%', maxWidth: '360px', textAlign: 'center' }}>
             <div style={{ fontSize: '36px', marginBottom: '12px' }}>⚠️</div>
             <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '8px' }}>Table {tableToFree.table_number} is Occupied</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '20px', lineHeight: '1.4' }}>
+            <p style={{ color: 'var(--charcoal-soft)', fontSize: '13px', marginBottom: '20px', lineHeight: '1.4' }}>
               Are you sure you want to release and free this table? This will allow you to place a new order on it.
             </p>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
@@ -508,11 +636,9 @@ export default function StaffNewOrderPage() {
                     const json = await res.json()
                     throw new Error(json.error || 'Failed to update table')
                   }
-                  // Refresh tables list
                   const tablesRes = await supabase.from('tables').select('*').order('id', { ascending: true })
                   if (tablesRes.data) setTables(tablesRes.data)
                   
-                  // Auto-select this table
                   setSelectedTableId(tableToFree.id)
                   setTableToFree(null)
                   setError('')

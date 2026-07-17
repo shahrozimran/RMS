@@ -58,8 +58,7 @@ export default async function AdminStaffPage() {
                 <td style={{ fontSize:'13px', color:'var(--charcoal-soft)' }}>{new Date(s.created_at).toLocaleDateString()}</td>
                 <td>
                   <div style={{ display:'flex', gap:'8px' }}>
-                    <Link href={`/admin/staff/${s.id}`} className="btn btn-secondary btn-sm" style={{ textDecoration:'none' }}>View</Link>
-                    <Link href={`/admin/staff/${s.id}/edit`} className="btn btn-ghost btn-sm" style={{ textDecoration:'none' }}>Edit</Link>
+                    <Link href={`/admin/staff/${s.id}`} className="btn btn-secondary btn-sm" style={{ textDecoration:'none' }}>Manage Account</Link>
                   </div>
                 </td>
               </tr>

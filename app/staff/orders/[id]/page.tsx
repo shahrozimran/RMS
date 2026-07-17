@@ -202,16 +202,26 @@ export default function StaffOrderDetailPage() {
         </div>
 
         {/* Primary Call to Actions */}
-        <div style={{ display: 'flex', gap: '12px' }}>
-          {(order.status === 'active' || order.status === 'billed') && (
-            <button
-              id="proceed-billing-btn"
-              className="btn btn-primary btn-lg"
-              onClick={() => router.push(`/staff/orders/${order.id}/bill`)}
-              style={{ width: '100%' }}
-            >
-              💵 Proceed to Billing & Checkout
-            </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {(order.status === 'active' || order.status === 'billed' || order.status === 'draft') && (
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                id="proceed-billing-btn"
+                className="btn btn-primary btn-lg"
+                onClick={() => router.push(`/staff/orders/${order.id}/bill`)}
+                style={{ flex: 1 }}
+              >
+                💵 Proceed to Checkout
+              </button>
+              <button
+                id="modify-order-btn"
+                className="btn btn-secondary btn-lg"
+                onClick={() => router.push(`/staff/orders/${order.id}/edit`)}
+                style={{ flex: 1 }}
+              >
+                ✏️ Modify Order
+              </button>
+            </div>
           )}
 
           {order.status === 'paid' && (
@@ -221,9 +231,18 @@ export default function StaffOrderDetailPage() {
               onClick={() => router.push(`/staff/orders/${order.id}/receipt`)}
               style={{ width: '100%' }}
             >
-              🧾 View & Print Receipt
+              🧾 View Customer Receipt
             </button>
           )}
+
+          <button
+            id="print-kitchen-kot-btn"
+            className="btn btn-secondary"
+            onClick={() => router.push(`/staff/orders/${order.id}/kitchen-receipt`)}
+            style={{ width: '100%' }}
+          >
+            🍳 Print Kitchen Ticket (KOT)
+          </button>
         </div>
       </div>
     </div>
