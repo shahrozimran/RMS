@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 
 interface PendingQrOrder {
   id: string
@@ -23,6 +24,7 @@ interface HistoricalQrOrder {
 }
 
 export default function StaffQrOrdersWorkspace() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending')
   const [pendingOrders, setPendingOrders] = useState<PendingQrOrder[]>([])
   const [historyOrders, setHistoryOrders] = useState<HistoricalQrOrder[]>([])
@@ -88,7 +90,13 @@ export default function StaffQrOrdersWorkspace() {
       const res = await fetch(`/api/qr/pending/${id}/confirm`, { method: 'POST' })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Failed to confirm order')
-      await Promise.all([fetchPending(), fetchHistory()])
+      
+      // Auto-redirect to kitchen receipt print screen
+      if (json.data?.id) {
+        router.push(`/staff/orders/${json.data.id}/kitchen-receipt`)
+      } else {
+        await Promise.all([fetchPending(), fetchHistory()])
+      }
     } catch (e: any) {
       setActionError(e.message)
     } finally {

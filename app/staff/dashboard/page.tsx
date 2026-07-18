@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 /* ─── Types ─────────────────────────────────────────── */
@@ -25,6 +26,7 @@ interface ActiveOrder {
 
 /* ─── QR Incoming Orders Panel ───────────────────────── */
 function QrOrdersPanel() {
+  const router = useRouter()
   const [pendingOrders, setPendingOrders] = useState<PendingQrOrder[]>([])
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [actionErrors, setActionErrors] = useState<Record<string, string>>({})
@@ -70,7 +72,13 @@ function QrOrdersPanel() {
       const res = await fetch(`/api/qr/pending/${id}/confirm`, { method: 'POST' })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Failed to confirm')
-      fetchPending()
+      
+      // Auto-redirect to kitchen receipt print screen
+      if (json.data?.id) {
+        router.push(`/staff/orders/${json.data.id}/kitchen-receipt`)
+      } else {
+        fetchPending()
+      }
     } catch (e: any) {
       setActionErrors(prev => ({ ...prev, [id]: e.message }))
     } finally {
