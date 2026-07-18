@@ -32,6 +32,10 @@ export default function LoginPage() {
     setError('')
     startTransition(async () => {
       try {
+        // Sign out any active admin session to avoid cookie collision
+        const supabase = createClient()
+        await supabase.auth.signOut().catch(() => {})
+
         const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -52,6 +56,9 @@ export default function LoginPage() {
     setError('')
     startTransition(async () => {
       try {
+        // Clear any old staff cookie from the browser via the API
+        await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {})
+
         const supabase = createClient()
         const { error: authError } = await supabase.auth.signInWithPassword({
           email: adminEmail,
