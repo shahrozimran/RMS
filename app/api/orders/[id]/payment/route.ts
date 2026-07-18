@@ -77,11 +77,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }))
     await supabase.from('payments').insert(paymentRecords)
 
-    // Deduct stock atomically
-    await supabase.rpc('deduct_stock_for_order', {
-      p_order_id:     resolvedParams.id,
-      p_performed_by: session!.id,
-    })
+
 
     // Free the table (Actually update table status via direct query)
     const { data: fullOrder } = await supabase.from('orders').select('table_id, order_type').eq('id', resolvedParams.id).single()

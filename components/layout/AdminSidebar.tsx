@@ -35,12 +35,7 @@ const Icons = {
       <rect x="3" y="7" width="18" height="3" rx="1" /><path d="M6 10v7M18 10v7M3 17h18" />
     </svg>
   ),
-  Inventory: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
-      <path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12" />
-    </svg>
-  ),
+
   Reports: () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M18 20V10M12 20V4M6 20v-6" />
@@ -70,7 +65,6 @@ const navItems = [
   { href: '/admin/menu',      label: 'Menu',        Icon: Icons.Menu },
   { href: '/admin/staff',     label: 'Staff',       Icon: Icons.Staff },
   { href: '/admin/tables',    label: 'Tables',      Icon: Icons.Tables },
-  { href: '/admin/inventory', label: 'Inventory',   Icon: Icons.Inventory },
   { href: '/admin/reports',   label: 'Reports',     Icon: Icons.Reports },
   { href: '/admin/activity',  label: 'Activity',    Icon: Icons.Activity },
   { href: '/admin/settings',  label: 'Settings',    Icon: Icons.Settings },
