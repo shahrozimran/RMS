@@ -227,106 +227,108 @@ export default function AdminTablesPage() {
   }
 
   return (
-    <div className="animate-in">
-      <div className="page-header">
-        <h1>Table Management</h1>
-        <p>Monitor, configure, and generate QR codes for your restaurant tables.</p>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '24px', alignItems: 'start' }}>
-        {/* Visual floor/table list */}
-        <div className="surface-card" style={{ padding: '24px' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px' }}>Floor Layout</h3>
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '40px' }}>Loading floor plan...</div>
-          ) : (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-              gap: '16px'
-            }}>
-              {tables.map((t) => (
-                <div key={t.id} style={{ position: 'relative' }}>
-                  <div
-                    className={`table-card ${t.status}`}
-                    onClick={() => openEditModal(t)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="7" width="18" height="3" rx="1"/><path d="M6 10v7M18 10v7M3 17h18"/></svg>
-                    <span style={{ fontSize: '16px', fontWeight: 700 }}>{t.table_number}</span>
-                    <span style={{ fontSize: '11px', opacity: 0.7 }}>Cap: {t.capacity || 4}</span>
-                    <span className={`badge ${
-                      t.status === 'free' ? 'badge-green' :
-                      t.status === 'occupied' ? 'badge-red' :
-                      t.status === 'reserved' ? 'badge-yellow' : 'badge-gray'
-                    }`} style={{ textTransform: 'capitalize', fontSize: '10px', padding: '2px 6px', marginTop: '4px' }}>
-                      {t.status}
-                    </span>
-                  </div>
-
-                  {/* QR button */}
-                  {t.qr_token && (
-                    <button
-                      id={`qr-btn-${t.id}`}
-                      onClick={(e) => { e.stopPropagation(); openQrModal(t) }}
-                      title="View QR Code"
-                      style={{
-                        position: 'absolute', top: 6, right: 6,
-                        width: 26, height: 26, borderRadius: 8,
-                        background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
-                        border: '1px solid rgba(255,255,255,0.15)',
-                        color: '#fff', fontSize: 14, cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        transition: 'background 0.15s',
-                      }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-                        <path d="M14 14h3v3M17 20h3M20 17v3"/>
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-          <div style={{ marginTop: '24px', padding: '12px 16px', background: 'var(--surface-raised)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--charcoal-soft)', display: 'flex', justifyContent: 'center', gap: '16px', flexWrap: 'wrap' }}>
-            <span>ℹ️ Click a table to edit capacity/status.</span>
-            <span>📷 Click the QR icon to view & download the table&apos;s QR code.</span>
-          </div>
+    <>
+      <div className="animate-in">
+        <div className="page-header">
+          <h1>Table Management</h1>
+          <p>Monitor, configure, and generate QR codes for your restaurant tables.</p>
         </div>
 
-        {/* Configuration Panel */}
-        <div className="surface-card" style={{ padding: '24px' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px' }}>Table Settings</h3>
-          <form onSubmit={handleUpdateCount} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div className="input-group">
-              <label className="input-label" htmlFor="table-count">Total Table Count</label>
-              <input
-                id="table-count"
-                className="input"
-                type="number"
-                min="1"
-                max="100"
-                value={tableCount}
-                onChange={(e) => setTableCount(parseInt(e.target.value) || 1)}
-                required
-              />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '24px', alignItems: 'start' }}>
+          {/* Visual floor/table list */}
+          <div className="surface-card" style={{ padding: '24px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px' }}>Floor Layout</h3>
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '40px' }}>Loading floor plan...</div>
+            ) : (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                gap: '16px'
+              }}>
+                {tables.map((t) => (
+                  <div key={t.id} style={{ position: 'relative' }}>
+                    <div
+                      className={`table-card ${t.status}`}
+                      onClick={() => openEditModal(t)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="7" width="18" height="3" rx="1"/><path d="M6 10v7M18 10v7M3 17h18"/></svg>
+                      <span style={{ fontSize: '16px', fontWeight: 700 }}>{t.table_number}</span>
+                      <span style={{ fontSize: '11px', opacity: 0.7 }}>Cap: {t.capacity || 4}</span>
+                      <span className={`badge ${
+                        t.status === 'free' ? 'badge-green' :
+                        t.status === 'occupied' ? 'badge-red' :
+                        t.status === 'reserved' ? 'badge-yellow' : 'badge-gray'
+                      }`} style={{ textTransform: 'capitalize', fontSize: '10px', padding: '2px 6px', marginTop: '4px' }}>
+                        {t.status}
+                      </span>
+                    </div>
+
+                    {/* QR button */}
+                    {t.qr_token && (
+                      <button
+                        id={`qr-btn-${t.id}`}
+                        onClick={(e) => { e.stopPropagation(); openQrModal(t) }}
+                        title="View QR Code"
+                        style={{
+                          position: 'absolute', top: 6, right: 6,
+                          width: 26, height: 26, borderRadius: 8,
+                          background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
+                          border: '1px solid rgba(255,255,255,0.15)',
+                          color: '#fff', fontSize: 14, cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          transition: 'background 0.15s',
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+                          <path d="M14 14h3v3M17 20h3M20 17v3"/>
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ marginTop: '24px', padding: '12px 16px', background: 'var(--surface-raised)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--charcoal-soft)', display: 'flex', justifyContent: 'center', gap: '16px', flexWrap: 'wrap' }}>
+              <span>ℹ️ Click a table to edit capacity/status.</span>
+              <span>📷 Click the QR icon to view & download the table&apos;s QR code.</span>
             </div>
-            {error && <div className="badge badge-red" style={{ padding: '8px', borderRadius: '6px' }}>{error}</div>}
-            {success && <div className="badge badge-green" style={{ padding: '8px', borderRadius: '6px' }}>{success}</div>}
-            <button
-              id="save-table-count-btn"
-              type="submit"
-              disabled={saving}
-              className="btn btn-primary"
-              style={{ width: '100%' }}
-            >
-              {saving ? 'Saving...' : 'Sync Tables'}
-            </button>
-          </form>
-          <div style={{ marginTop: '16px', fontSize: '12px', color: 'var(--charcoal-soft)', lineHeight: '1.6' }}>
-            <strong>Note:</strong> Increasing the count creates new tables (e.g. T11, T12). Decreasing the count removes empty tables from the end. Each new table automatically gets a unique QR code.
+          </div>
+
+          {/* Configuration Panel */}
+          <div className="surface-card" style={{ padding: '24px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px' }}>Table Settings</h3>
+            <form onSubmit={handleUpdateCount} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="input-group">
+                <label className="input-label" htmlFor="table-count">Total Table Count</label>
+                <input
+                  id="table-count"
+                  className="input"
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={tableCount}
+                  onChange={(e) => setTableCount(parseInt(e.target.value) || 1)}
+                  required
+                />
+              </div>
+              {error && <div className="badge badge-red" style={{ padding: '8px', borderRadius: '6px' }}>{error}</div>}
+              {success && <div className="badge badge-green" style={{ padding: '8px', borderRadius: '6px' }}>{success}</div>}
+              <button
+                id="save-table-count-btn"
+                type="submit"
+                disabled={saving}
+                className="btn btn-primary"
+                style={{ width: '100%' }}
+              >
+                {saving ? 'Saving...' : 'Sync Tables'}
+              </button>
+            </form>
+            <div style={{ marginTop: '16px', fontSize: '12px', color: 'var(--charcoal-soft)', lineHeight: '1.6' }}>
+              <strong>Note:</strong> Increasing the count creates new tables (e.g. T11, T12). Decreasing the count removes empty tables from the end. Each new table automatically gets a unique QR code.
+            </div>
           </div>
         </div>
       </div>
@@ -392,23 +394,32 @@ export default function AdminTablesPage() {
           onClick={() => { setQrTable(null); setQrDataUrl('') }}
           style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+            background: 'rgba(44, 44, 44, 0.45)', backdropFilter: 'blur(8px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100
           }}
         >
           <div 
             onClick={(e) => e.stopPropagation()}
             className="surface-card animate-in" 
-            style={{ padding: '28px', width: '100%', maxWidth: '380px', boxShadow: 'var(--shadow-lg)', textAlign: 'center' }}
+            style={{ 
+              padding: '32px', 
+              width: '100%', 
+              maxWidth: '400px', 
+              boxShadow: '0 20px 40px rgba(44,44,44,0.15), 0 0 0 1px rgba(200,169,126,0.2)', 
+              textAlign: 'center',
+              border: '2px solid var(--accent)',
+              borderRadius: '20px',
+              position: 'relative'
+            }}
           >
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', textAlign: 'left' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', textAlign: 'left' }}>
               <div>
-                <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--charcoal)', marginBottom: '2px' }}>
-                  QR Code — {qrTable.table_number}
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--charcoal)', marginBottom: '4px' }}>
+                  Table QR Code
                 </h3>
                 <p style={{ fontSize: '12px', color: 'var(--charcoal-soft)', margin: 0 }}>
-                  Customers scan this to order from their table
+                  Place this code at the table for customer self-ordering.
                 </p>
               </div>
               <button
@@ -416,50 +427,109 @@ export default function AdminTablesPage() {
                 style={{ 
                   background: 'var(--surface-raised)', 
                   border: '1px solid var(--border)', 
-                  borderRadius: 8, 
-                  width: 32, 
-                  height: 32, 
+                  borderRadius: 10, 
+                  width: 34, 
+                  height: 34, 
                   cursor: 'pointer', 
-                  fontSize: 16, 
+                  fontSize: 14, 
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center', 
                   flexShrink: 0,
-                  color: 'var(--charcoal)'
+                  color: 'var(--charcoal-mid)',
+                  transition: 'all 0.2s',
                 }}
               >
                 ✕
               </button>
             </div>
 
-            {/* QR Image */}
+            {/* QR Image Container */}
             <div style={{
-              background: '#ffffff', borderRadius: 16, padding: 16, display: 'inline-block',
-              marginBottom: 16, boxShadow: '0 4px 24px rgba(0,0,0,0.2)'
+              background: '#ffffff', 
+              borderRadius: '20px', 
+              padding: '20px', 
+              display: 'inline-block',
+              marginBottom: '20px', 
+              border: '2.5px solid var(--accent-light)',
+              boxShadow: 'var(--shadow-md)',
+              lineHeight: 0
             }}>
               {qrDataUrl ? (
-                <img src={qrDataUrl} alt={`QR for ${qrTable.table_number}`} style={{ width: 220, height: 220, display: 'block' }} />
+                <img src={qrDataUrl} alt={`QR for ${qrTable.table_number}`} style={{ width: 200, height: 200, display: 'block' }} />
               ) : (
-                <div style={{ width: 220, height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f0f0', borderRadius: 8 }}>
-                  <div style={{ width: 32, height: 32, border: '3px solid #ccc', borderTop: '3px solid #333', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                <div style={{ width: 200, height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', borderRadius: '12px' }}>
+                  <div style={{ width: 32, height: 32, border: '3px solid #ccc', borderTop: '3px solid var(--accent)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                 </div>
               )}
             </div>
 
-            {/* Table label */}
-            <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--charcoal)', marginBottom: 4 }}>{qrTable.table_number}</div>
-            <div style={{ fontSize: 11, color: 'var(--charcoal-soft)', marginBottom: 16, wordBreak: 'break-all', fontFamily: 'monospace', padding: '4px 8px', background: 'var(--surface-raised)', borderRadius: 6 }}>
-              {qrUrl}
+            {/* Table Number Title */}
+            <div style={{ 
+              fontSize: '24px', 
+              fontWeight: 800, 
+              color: 'var(--charcoal)', 
+              marginBottom: '6px',
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              letterSpacing: '-0.02em'
+            }}>
+              Table {qrTable.table_number}
             </div>
 
-            {/* Actions */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+            {/* Read-only URL box with Copy option */}
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px',
+              marginBottom: '24px', 
+              background: 'var(--surface-raised)', 
+              border: '1px solid var(--border)',
+              borderRadius: '10px',
+              padding: '6px 10px',
+            }}>
+              <span style={{ 
+                fontSize: '11px', 
+                color: 'var(--charcoal-soft)', 
+                fontFamily: 'monospace',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                flex: 1,
+                textAlign: 'left'
+              }}>
+                {qrUrl}
+              </span>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigator.clipboard.writeText(qrUrl);
+                  alert('URL copied to clipboard!');
+                }}
+                title="Copy URL"
+                style={{
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '6px',
+                  padding: '4px 8px',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  color: 'var(--charcoal-mid)',
+                  flexShrink: 0
+                }}
+              >
+                Copy
+              </button>
+            </div>
+
+            {/* Print/Download Action Buttons */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
               <button
                 id={`download-qr-${qrTable.id}`}
-                className="btn btn-primary"
+                className="btn btn-accent"
                 onClick={handleDownloadQr}
                 disabled={!qrDataUrl}
-                style={{ flex: 1 }}
+                style={{ flex: 1, height: '44px' }}
               >
                 ⬇ Download PNG
               </button>
@@ -468,34 +538,36 @@ export default function AdminTablesPage() {
                 className="btn btn-secondary"
                 onClick={handlePrintQr}
                 disabled={!qrDataUrl}
-                style={{ flex: 1 }}
+                style={{ flex: 1, height: '44px' }}
               >
-                🖨 Print
+                🖨 Print Code
               </button>
             </div>
             
+            {/* Secondary Option: Regenerate */}
             <button
               id={`regen-qr-${qrTable.id}`}
-              className="btn btn-secondary"
+              className="btn btn-ghost"
               onClick={handleRegenerateQr}
               disabled={regenerating}
-              style={{ width: '100%', fontSize: 12, color: 'var(--charcoal-soft)', marginBottom: 12 }}
+              style={{ width: '100%', fontSize: '12px', color: 'var(--charcoal-soft)', marginBottom: 14, minHeight: '34px' }}
             >
               {regenerating ? 'Regenerating…' : '🔄 Regenerate QR (invalidates old code)'}
             </button>
 
+            {/* Primary Close Button */}
             <button
-              className="btn btn-secondary"
+              className="btn btn-primary"
               onClick={() => { setQrTable(null); setQrDataUrl('') }}
-              style={{ width: '100%', fontSize: 13, fontWeight: 600 }}
+              style={{ width: '100%', height: '46px', fontWeight: 700 }}
             >
-              Close
+              Close Viewer
             </button>
 
             <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
