@@ -142,6 +142,14 @@ export default function StaffBillingPage() {
       return
     }
 
+    if (paymentMethod === 'cash') {
+      const cashTenderedVal = parseFloat(cashTendered) || amt
+      if (cashTenderedVal < amt) {
+        setError(`Insufficient cash for this split: Need at least ${fmt(amt)}`)
+        return
+      }
+    }
+
     setSplitAllocations([
       ...splitAllocations,
       {
@@ -168,6 +176,16 @@ export default function StaffBillingPage() {
   const handleCheckout = async () => {
     setSubmitting(true)
     setError('')
+
+    // Validate cash received is sufficient for single cash checkout
+    if (!isSplitPayment && paymentMethod === 'cash') {
+      const cashVal = parseFloat(cashTendered) || 0
+      if (cashVal < grandTotal) {
+        setError(`Insufficient cash received: ${fmt(grandTotal - cashVal)} more needed`)
+        setSubmitting(false)
+        return
+      }
+    }
 
     const finalPaymentsPayload = isSplitPayment
       ? splitAllocations.map(a => ({
@@ -325,13 +343,16 @@ export default function StaffBillingPage() {
                     />
                   </div>
                   <div className="input-group">
-                    <label className="input-label">Change Due</label>
+                    <label className="input-label" style={{ color: cashGivenVal > 0 && cashGivenVal < grandTotal ? 'var(--error, #ef4444)' : undefined }}>
+                      {cashGivenVal > 0 && cashGivenVal < grandTotal ? 'More Needed' : 'Change Due'}
+                    </label>
                     <div style={{
                       minHeight: '44px', display: 'flex', alignItems: 'center',
                       background: 'var(--surface-3)', border: '1px solid var(--border-light)',
-                      borderRadius: '10px', padding: '0 14px', fontWeight: 'bold', color: 'var(--success)'
+                      borderRadius: '10px', padding: '0 14px', fontWeight: 'bold',
+                      color: cashGivenVal > 0 && cashGivenVal < grandTotal ? 'var(--error, #ef4444)' : 'var(--success, #4a7c59)'
                     }}>
-                      {fmt(changeDue)}
+                      {cashGivenVal > 0 && cashGivenVal < grandTotal ? fmt(grandTotal - cashGivenVal) : fmt(changeDue)}
                     </div>
                   </div>
                 </div>
@@ -400,18 +421,39 @@ export default function StaffBillingPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {splitAllocations.map((a, idx) => (
                       <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                        <span style={{ textTransform: 'capitalize' }}>
-                          ● {a.method} - {fmt(a.amount)}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>
+                            ● {a.method} - {fmt(a.amount)}
+                          </span>
+                          {a.method === 'cash' && a.cash_tendered && a.cash_tendered > a.amount && (
+                            <span style={{ color: 'var(--success, #4a7c59)', fontSize: '11px', paddingLeft: '12px', marginTop: '2px' }}>
+                              (Change Due: {fmt(a.cash_tendered - a.amount)})
+                            </span>
+                          )}
+                        </div>
                         <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeSplitAllocation(idx)} style={{ color: '#ef4444', minHeight: '24px', padding: '0 4px' }}>
                           Remove
                         </button>
                       </div>
                     ))}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '13px', marginTop: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '13px', marginTop: '8px', borderTop: '1px dashed var(--border-light)', paddingTop: '6px' }}>
                       <span>Total Allocated:</span>
                       <span>{fmt(splitAllocations.reduce((s,a) => s + a.amount, 0))}</span>
                     </div>
+                    {(() => {
+                      const allocatedSum = splitAllocations.reduce((s,a) => s + a.amount, 0)
+                      return allocatedSum < grandTotal ? (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '13px', color: 'var(--error, #ef4444)', marginTop: '4px' }}>
+                          <span>More Needed:</span>
+                          <span>{fmt(grandTotal - allocatedSum)}</span>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '13px', color: 'var(--success, #4a7c59)', marginTop: '4px' }}>
+                          <span>Fully Allocated!</span>
+                          <span>{fmt(allocatedSum)}</span>
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
               </div>

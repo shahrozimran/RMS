@@ -88,6 +88,27 @@ export default function StaffTopBar({ user }: StaffTopBarProps) {
       {/* Nav Links */}
       <nav style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
         <Link
+          href="/staff/dashboard"
+          id="nav-dashboard"
+          className="btn btn-ghost btn-sm"
+          style={{
+            textDecoration: 'none',
+            color: pathname === '/staff/dashboard' ? 'var(--charcoal)' : 'var(--charcoal-mid)',
+            background: pathname === '/staff/dashboard' ? 'var(--surface-hover)' : 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="7" height="9" />
+            <rect x="14" y="3" width="7" height="5" />
+            <rect x="14" y="12" width="7" height="9" />
+            <rect x="3" y="16" width="7" height="5" />
+          </svg>
+          Dashboard
+        </Link>
+        <Link
           href="/staff/orders"
           id="nav-orders"
           className="btn btn-ghost btn-sm"
