@@ -292,17 +292,18 @@ export default function StaffDashboardPage() {
       const [ordersRes, activeRes, shiftRes] = await Promise.all([
         fetch('/api/orders?status=paid&limit=200'),
         fetch('/api/orders?status=active&limit=50'),
-        supabase.from('shifts').select('id, clock_in').is('clock_out', null).order('clock_in', { ascending: false }).limit(1).single(),
+        fetch('/api/shifts'),
       ])
 
       const ordersJson = ordersRes.ok ? await ordersRes.json() : { data: [] }
       const activeJson = activeRes.ok ? await activeRes.json() : { data: [] }
+      const shiftJson = shiftRes.ok ? await shiftRes.json() : { activeShift: null }
 
       // Filter to today only
       const todayPaid = (ordersJson.data || []).filter((o: any) => o.created_at >= startOfDay)
       setTodayOrders(todayPaid)
       setActiveOrders(activeJson.data || [])
-      if (shiftRes.data) setActiveShift(shiftRes.data)
+      setActiveShift(shiftJson.activeShift || null)
     } catch (e) {
       console.error(e)
     } finally {

@@ -47,3 +47,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
 }
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getSession()
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const supabase = await createAdminClient()
+
+    // Retrieve active shift for current staff member
+    const { data, error } = await supabase
+      .from('shifts')
+      .select('id, clock_in')
+      .eq('staff_id', session.id)
+      .is('clock_out', null)
+      .order('clock_in', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (error) throw error
+
+    return NextResponse.json({ activeShift: data || null })
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
+}

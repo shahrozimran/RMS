@@ -24,7 +24,12 @@ export default async function AdminStaffPage() {
           <h1>Staff Management</h1>
           <p>{staff?.length ?? 0} staff members</p>
         </div>
-        <Link id="add-staff-btn" href="/admin/staff/new" className="btn btn-primary" style={{ textDecoration:'none' }}>+ Add Staff</Link>
+        <div style={{ display:'flex', gap:'10px' }}>
+          <Link href="/admin/staff/performance" className="btn btn-secondary" style={{ textDecoration:'none' }}>
+            📊 Shifts & Performance
+          </Link>
+          <Link id="add-staff-btn" href="/admin/staff/new" className="btn btn-primary" style={{ textDecoration:'none' }}>+ Add Staff</Link>
+        </div>
       </div>
 
       <div className="surface-card" style={{ overflow:'hidden' }}>

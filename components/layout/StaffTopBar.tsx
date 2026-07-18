@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 interface StaffTopBarProps {
   user: { name: string; role: string }
@@ -12,6 +13,33 @@ export default function StaffTopBar({ user }: StaffTopBarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [loggingOut, setLoggingOut] = useState(false)
+  const [pendingCount, setPendingCount] = useState(0)
+
+  const supabase = createClient()
+
+  const fetchPendingCount = async () => {
+    try {
+      const res = await fetch('/api/qr/pending')
+      if (res.ok) {
+        const json = await res.json()
+        setPendingCount(json.data?.length || 0)
+      }
+    } catch {}
+  }
+
+  useEffect(() => {
+    fetchPendingCount()
+    const channel = supabase
+      .channel('topbar-qr-count')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'qr_pending_orders' }, () => {
+        fetchPendingCount()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
 
   const handleLogout = async () => {
     setLoggingOut(true)
@@ -77,6 +105,33 @@ export default function StaffTopBar({ user }: StaffTopBarProps) {
             <path d="M9 12h6M9 16h4" />
           </svg>
           My Orders
+        </Link>
+        <Link
+          href="/staff/qr-orders"
+          id="nav-qr-orders"
+          className="btn btn-ghost btn-sm"
+          style={{
+            textDecoration: 'none',
+            color: pathname.startsWith('/staff/qr-orders') ? 'var(--charcoal)' : 'var(--charcoal-mid)',
+            background: pathname.startsWith('/staff/qr-orders') ? 'var(--surface-hover)' : 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}
+        >
+          📱 QR Orders
+          {pendingCount > 0 && (
+            <span style={{
+              background: 'var(--accent)',
+              color: '#fff',
+              borderRadius: '10px',
+              padding: '1px 6px',
+              fontSize: '10px',
+              fontWeight: 800
+            }}>
+              {pendingCount}
+            </span>
+          )}
         </Link>
         <Link
           href="/staff/orders/new"
