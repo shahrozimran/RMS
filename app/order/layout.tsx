@@ -18,14 +18,14 @@ export default function OrderLayout({ children }: { children: React.ReactNode })
           html, body { height: 100%; }
           body {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background: #0a0a0f;
-            color: #f0f0f5;
+            background: #FAF8F5;
+            color: #2C2C2C;
             -webkit-font-smoothing: antialiased;
             overflow-x: hidden;
           }
           ::-webkit-scrollbar { width: 4px; }
           ::-webkit-scrollbar-track { background: transparent; }
-          ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+          ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
         `}</style>
       </head>
       <body>{children}</body>
