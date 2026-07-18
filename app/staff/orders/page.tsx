@@ -85,7 +85,35 @@ export default function StaffOrdersPage() {
 
       <div className="surface-card" style={{ overflow: 'hidden' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px' }}>Loading orders...</div>
+          <table className="data-table" style={{ animation: 'skeleton-pulse 1.5s infinite' }}>
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Time</th>
+                <th>Type</th>
+                <th>Table / Source</th>
+                <th>Total Bill</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 5 }).map((_, idx) => (
+                <tr key={idx}>
+                  {Array.from({ length: 7 }).map((_, col) => (
+                    <td key={col} style={{ padding: '16px' }}>
+                      <div style={{
+                        width: col === 0 ? '60px' : col === 4 ? '40px' : '80%',
+                        height: '14px',
+                        background: 'var(--surface-muted, #E8E3DC)',
+                        borderRadius: '4px'
+                      }} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : (
           <table className="data-table">
             <thead>

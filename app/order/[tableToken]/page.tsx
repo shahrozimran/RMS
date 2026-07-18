@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
+import { clientCache } from '@/lib/utils/cache'
 
 /* ─── Types ───────────────────────────────────────────────── */
 interface Category { id: number; name: string; sort_order: number }
@@ -116,6 +117,20 @@ export default function CustomerOrderPage() {
   /* Load menu data */
   useEffect(() => {
     if (!tableToken) return
+    
+    // Check client-side memory cache first
+    const cachedData = clientCache.get<any>(`menu-${tableToken}`)
+    if (cachedData) {
+      setTable(cachedData.table)
+      setCategories(cachedData.categories || [])
+      setProducts(cachedData.products || [])
+      setCurrency(cachedData.settings?.currency || { code: 'USD', symbol: '$', locale: 'en-US' })
+      setRestaurantName(cachedData.settings?.restaurant_name || 'Our Restaurant')
+      if (cachedData.categories?.length > 0) setSelectedCategory(cachedData.categories[0].id)
+      setPageState('menu')
+      return
+    }
+
     fetch(`/api/qr/${tableToken}`)
       .then(r => r.json())
       .then(json => {
@@ -126,6 +141,9 @@ export default function CustomerOrderPage() {
         setCurrency(json.settings?.currency || { code: 'USD', symbol: '$', locale: 'en-US' })
         setRestaurantName(json.settings?.restaurant_name || 'Our Restaurant')
         if (json.categories?.length > 0) setSelectedCategory(json.categories[0].id)
+        
+        // Cache the menu response for 5 minutes
+        clientCache.set(`menu-${tableToken}`, json, 300)
         setPageState('menu')
       })
       .catch(e => { setErrorMsg(e.message); setPageState('error') })
@@ -216,10 +234,57 @@ export default function CustomerOrderPage() {
   /* ─── Render: Loading ─────────────────────────────────────── */
   if (pageState === 'loading') {
     return (
-      <div style={S.loading}>
-        <style>{`@keyframes spin { to { transform: rotate(360deg) } } @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }`}</style>
-        <div style={S.spinner} />
-        <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Loading menu…</span>
+      <div style={S.page}>
+        {/* Header Skeleton */}
+        <header style={S.header}>
+          <div style={S.headerLeft}>
+            <div style={{ width: 140, height: 16, background: '#E8E3DC', borderRadius: 4, marginBottom: 6, animation: 'skeleton-pulse 1.5s infinite' }} />
+            <div style={{ width: 80, height: 12, background: '#E8E3DC', borderRadius: 4, animation: 'skeleton-pulse 1.5s infinite' }} />
+          </div>
+          <div style={{ width: 70, height: 38, background: '#E8E3DC', borderRadius: 12, animation: 'skeleton-pulse 1.5s infinite' }} />
+        </header>
+
+        <div style={S.body}>
+          {/* Category Tabs Skeleton */}
+          <div style={{ display: 'flex', gap: 8, padding: '16px 0 8px', overflowX: 'hidden' }}>
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <div
+                key={idx}
+                style={{
+                  flexShrink: 0,
+                  width: idx === 0 ? 80 : idx === 1 ? 110 : idx === 2 ? 70 : 90,
+                  height: 34,
+                  borderRadius: 40,
+                  background: '#FFFFFF',
+                  border: '1px solid #E4DED6',
+                  animation: 'skeleton-pulse 1.5s infinite',
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Product Grid Skeleton */}
+          <div style={S.grid}>
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <div key={idx} style={{ ...S.productCard, animation: 'skeleton-pulse 1.5s infinite' }}>
+                <div style={{ width: '100%', height: 110, background: '#F5F2EE' }} />
+                <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ width: '70%', height: 14, background: '#E8E3DC', borderRadius: 4 }} />
+                  <div style={{ width: '90%', height: 10, background: '#E8E3DC', borderRadius: 4 }} />
+                  <div style={{ width: '40%', height: 10, background: '#E8E3DC', borderRadius: 4 }} />
+                  <div style={{ width: '100%', height: 32, background: '#E8E3DC', borderRadius: 10, marginTop: 4 }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <style>{`
+          @keyframes skeleton-pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+          }
+        `}</style>
       </div>
     )
   }

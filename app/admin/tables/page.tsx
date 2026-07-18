@@ -239,7 +239,26 @@ export default function AdminTablesPage() {
           <div className="surface-card" style={{ padding: '24px' }}>
             <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px' }}>Floor Layout</h3>
             {loading ? (
-              <div style={{ textAlign: 'center', padding: '40px' }}>Loading floor plan...</div>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                gap: '16px',
+                animation: 'skeleton-pulse 1.5s infinite'
+              }}>
+                {Array.from({ length: 10 }).map((_, idx) => (
+                  <div
+                    key={idx}
+                    className="table-card"
+                    style={{
+                      aspectRatio: 1,
+                      background: 'var(--surface-muted, #E8E3DC)',
+                      border: '1.5px solid var(--border)',
+                      cursor: 'default',
+                      pointerEvents: 'none'
+                    }}
+                  />
+                ))}
+              </div>
             ) : (
               <div style={{
                 display: 'grid',

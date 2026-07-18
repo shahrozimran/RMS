@@ -440,6 +440,12 @@ select.input {
 }
 .spin { animation: spin 0.8s linear infinite; }
 
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+.skeleton-pulse { animation: skeleton-pulse 1.5s ease-in-out infinite; }
+
 /* ─── RECEIPT PRINT ──────────────────────────────────────── */
 @media print {
   body * { visibility: hidden; }
