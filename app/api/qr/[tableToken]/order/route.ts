@@ -67,7 +67,7 @@ export async function POST(
 
     // Check each cart item price
     for (const item of items) {
-      const dbProd = dbProducts.find(p => p.id === item.product_id)
+      const dbProd = dbProducts.find((p: any) => p.id === item.product_id)
       if (!dbProd) {
         return NextResponse.json({ error: 'Product verification failed' }, { status: 400 })
       }
