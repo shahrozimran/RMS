@@ -176,6 +176,10 @@ export default function CustomerOrderPage() {
   /* Submit order */
   const handlePlaceOrder = async () => {
     if (cart.length === 0) return
+    if (!customerName.trim()) {
+      setOrderError('Please enter your name to place the order.')
+      return
+    }
     setSubmitting(true)
     setOrderError('')
     try {
@@ -183,7 +187,7 @@ export default function CustomerOrderPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customer_name: customerName || null,
+          customer_name: customerName.trim(),
           items: cart.map(i => ({
             product_id: i.product_id,
             product_name: i.product_name,
@@ -403,9 +407,10 @@ export default function CustomerOrderPage() {
                   id="customer-name-input"
                   style={S.nameInput}
                   type="text"
-                  placeholder="Your name (optional)"
+                  placeholder="Your name (required)"
                   value={customerName}
                   onChange={e => setCustomerName(e.target.value)}
+                  required
                 />
 
                 {orderError && <div style={S.errorMsg}>{orderError}</div>}
