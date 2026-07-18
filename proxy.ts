@@ -2,8 +2,17 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 import { verifyStaffToken } from '@/lib/auth/staff-auth'
 
-// Public routes that don't need auth
-const PUBLIC_ROUTES = ['/login', '/api/auth/login', '/api/auth/logout']
+// ─── Public route matcher ────────────────────────────────────────
+// /order/* and /api/qr/[token]/* are fully public (customer self-ordering).
+// /api/qr/pending/* requires staff auth — must NOT be marked as public.
+function isPublicRoute(pathname: string): boolean {
+  if (pathname === '/login') return true
+  if (pathname.startsWith('/api/auth/')) return true
+  if (pathname.startsWith('/order')) return true  // Customer QR ordering page
+  // Allow /api/qr/[token] and /api/qr/[token]/order but NOT /api/qr/pending/
+  if (pathname.startsWith('/api/qr/') && !pathname.startsWith('/api/qr/pending')) return true
+  return false
+}
 
 // Admin-only route prefix
 const ADMIN_ROUTES = '/admin'
@@ -14,8 +23,8 @@ const STAFF_ROUTES = '/staff'
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Allow public routes
-  if (PUBLIC_ROUTES.some((r) => pathname.startsWith(r))) {
+  // Allow public routes (no auth needed)
+  if (isPublicRoute(pathname)) {
     return await updateSession(request)
   }
 

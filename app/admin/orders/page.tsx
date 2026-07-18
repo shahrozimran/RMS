@@ -10,6 +10,7 @@ interface Order {
   created_at: string
   status: 'draft' | 'active' | 'billed' | 'paid' | 'void' | 'refunded'
   order_type: 'dine_in' | 'takeaway' | 'delivery'
+  source: 'staff' | 'qr'
   total: number
   staff: { name: string } | null
   table: { table_number: string } | null
@@ -29,6 +30,7 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
+  const [sourceFilter, setSourceFilter] = useState('')
   const [currency, setCurrency] = useState<CurrencyConfig>({ code: 'USD', symbol: '$', locale: 'en-US' })
   const [error, setError] = useState('')
 
@@ -46,10 +48,8 @@ export default function AdminOrdersPage() {
       })
       .subscribe()
 
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [statusFilter, typeFilter])
+    return () => { supabase.removeChannel(channel) }
+  }, [statusFilter, typeFilter, sourceFilter])
 
   const fetchCurrency = async () => {
     const { data } = await supabase.from('system_settings').select('value').eq('key', 'currency').single()
@@ -60,11 +60,12 @@ export default function AdminOrdersPage() {
     try {
       let query = supabase
         .from('orders')
-        .select('id, created_at, status, order_type, total, staff:users!staff_id(name), table:tables(table_number)')
+        .select('id, created_at, status, order_type, source, total, staff:users!staff_id(name), table:tables(table_number)')
         .order('created_at', { ascending: false })
 
       if (statusFilter) query = query.eq('status', statusFilter)
       if (typeFilter) query = query.eq('order_type', typeFilter)
+      if (sourceFilter) query = query.eq('source', sourceFilter)
 
       const { data, error } = await query
       if (error) throw error
@@ -76,6 +77,8 @@ export default function AdminOrdersPage() {
     }
   }
 
+  const qrOrderCount = orders.filter(o => o.source === 'qr').length
+
   return (
     <div className="animate-in">
       <div className="page-header">
@@ -85,10 +88,40 @@ export default function AdminOrdersPage() {
 
       {error && <div className="badge badge-red" style={{ padding: '10px', borderRadius: '8px', marginBottom: '16px' }}>{error}</div>}
 
+      {/* QR orders callout (if any in current view) */}
+      {qrOrderCount > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          background: 'rgba(0,180,255,0.07)', border: '1px solid rgba(0,180,255,0.2)',
+          borderRadius: 12, padding: '12px 18px', marginBottom: 20
+        }}>
+          <span style={{ fontSize: 20 }}>📱</span>
+          <span style={{ fontSize: 13, color: 'var(--info)', fontWeight: 600 }}>
+            {qrOrderCount} QR-sourced order{qrOrderCount !== 1 ? 's' : ''} in this view
+          </span>
+          {sourceFilter !== 'qr' && (
+            <button
+              style={{ marginLeft: 'auto', background: 'none', border: '1px solid rgba(0,180,255,0.3)', borderRadius: 8, padding: '4px 12px', fontSize: 12, color: 'var(--info)', cursor: 'pointer' }}
+              onClick={() => setSourceFilter('qr')}
+            >
+              Show only QR orders
+            </button>
+          )}
+          {sourceFilter === 'qr' && (
+            <button
+              style={{ marginLeft: 'auto', background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 12px', fontSize: 12, color: 'var(--charcoal-soft)', cursor: 'pointer' }}
+              onClick={() => setSourceFilter('')}
+            >
+              Clear filter
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Filters bar */}
       <div className="surface-card" style={{ padding: '16px', display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <div className="input-group" style={{ width: '180px' }}>
-          <label className="input-label" htmlFor="order-status-filter">Status Filter</label>
+        <div className="input-group" style={{ width: '160px' }}>
+          <label className="input-label" htmlFor="order-status-filter">Status</label>
           <select
             id="order-status-filter"
             className="input"
@@ -105,7 +138,7 @@ export default function AdminOrdersPage() {
           </select>
         </div>
 
-        <div className="input-group" style={{ width: '180px' }}>
+        <div className="input-group" style={{ width: '160px' }}>
           <label className="input-label" htmlFor="order-type-filter">Order Type</label>
           <select
             id="order-type-filter"
@@ -118,6 +151,21 @@ export default function AdminOrdersPage() {
             <option value="dine_in">Dine-in</option>
             <option value="takeaway">Takeaway</option>
             <option value="delivery">Delivery</option>
+          </select>
+        </div>
+
+        <div className="input-group" style={{ width: '160px' }}>
+          <label className="input-label" htmlFor="order-source-filter">Source</label>
+          <select
+            id="order-source-filter"
+            className="input"
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+            style={{ minHeight: '36px', padding: '6px 12px' }}
+          >
+            <option value="">All Sources</option>
+            <option value="staff">Staff POS</option>
+            <option value="qr">QR Self-Order</option>
           </select>
         </div>
       </div>
@@ -134,6 +182,7 @@ export default function AdminOrdersPage() {
                 <th>Time</th>
                 <th>Type</th>
                 <th>Source</th>
+                <th>Table / Info</th>
                 <th>Staff</th>
                 <th>Total Bill</th>
                 <th>Status</th>
@@ -147,13 +196,34 @@ export default function AdminOrdersPage() {
                   <td style={{ fontSize: '13px' }}>{new Date(o.created_at).toLocaleTimeString()}</td>
                   <td style={{ textTransform: 'capitalize' }}>{o.order_type.replace('_', ' ')}</td>
                   <td>
+                    {o.source === 'qr' ? (
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        background: 'rgba(0,180,255,0.1)', color: 'var(--info)',
+                        border: '1px solid rgba(0,180,255,0.2)',
+                        borderRadius: 8, padding: '2px 8px', fontSize: 11, fontWeight: 700
+                      }}>
+                        📱 QR Order
+                      </span>
+                    ) : (
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        background: 'rgba(255,255,255,0.04)', color: 'var(--charcoal-soft)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 8, padding: '2px 8px', fontSize: 11, fontWeight: 600
+                      }}>
+                        🖥 Staff POS
+                      </span>
+                    )}
+                  </td>
+                  <td>
                     {o.order_type === 'dine_in' ? (
                       <span className="badge badge-gray">Table {o.table?.table_number ?? '?'}</span>
                     ) : (
                       <span className="badge badge-blue">{o.order_type}</span>
                     )}
                   </td>
-                  <td>{o.staff?.name || <span style={{ color: 'var(--charcoal-soft)' }}>System</span>}</td>
+                  <td>{o.staff?.name || <span style={{ color: 'var(--charcoal-soft)', fontStyle: 'italic' }}>System</span>}</td>
                   <td style={{ fontWeight: 600, color: 'var(--charcoal)' }}>
                     {formatCurrency(o.total, currency)}
                   </td>
@@ -175,7 +245,7 @@ export default function AdminOrdersPage() {
         {!loading && orders.length === 0 && (
           <div style={{ textAlign: 'center', padding: '48px', color: 'var(--charcoal-soft)' }}>
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--charcoal-faint)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 12px', display: 'block' }}><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
-            <p style={{ fontSize: '14px' }}>No orders found matching the filter criteria.</p>
+            <p style={{ fontSize:'14px' }}>No orders found matching the filter criteria.</p>
           </div>
         )}
       </div>
