@@ -266,11 +266,13 @@ export default function StaffDashboardPage() {
   const [activeShift, setActiveShift] = useState<{ id: string; clock_in: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [clockAction, setClockAction] = useState('')
+  const [mounted, setMounted] = useState(false)
   const supabase = createClient()
 
   const today = new Date()
 
   useEffect(() => {
+    setMounted(true)
     loadDashboard()
   }, [])
 
@@ -342,7 +344,7 @@ export default function StaffDashboardPage() {
       {/* Greeting */}
       <div className="page-header">
         <h1>Good {greeting}, {firstName}</h1>
-        <p>{today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+        <p>{mounted ? today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : ''}</p>
       </div>
 
       {/* ── QR Incoming Orders Panel (real-time) ── */}
@@ -387,7 +389,7 @@ export default function StaffDashboardPage() {
             <div>
               <div className="badge badge-green" style={{ marginBottom: '12px' }}>● Clocked In</div>
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                Since {new Date(activeShift.clock_in).toLocaleTimeString()}
+                Since {mounted ? new Date(activeShift.clock_in).toLocaleTimeString() : ''}
               </p>
               <button
                 id="clock-out-btn"

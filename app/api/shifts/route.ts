@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 
     const supabase = await createAdminClient()
 
-    // Retrieve active shift for current staff member
+    // Retrieve active shift for current staff member safely
     const { data, error } = await supabase
       .from('shifts')
       .select('id, clock_in')
@@ -63,11 +63,11 @@ export async function GET(request: NextRequest) {
       .is('clock_out', null)
       .order('clock_in', { ascending: false })
       .limit(1)
-      .maybeSingle()
 
     if (error) throw error
 
-    return NextResponse.json({ activeShift: data || null })
+    const activeShift = data && data.length > 0 ? data[0] : null
+    return NextResponse.json({ activeShift })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
