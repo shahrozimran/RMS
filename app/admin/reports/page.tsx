@@ -44,6 +44,7 @@ export default function AdminReportsPage() {
   const [topItems, setTopItems] = useState<TopItemRow[]>([])
   const [payments, setPayments] = useState<PaymentSplitRow[]>([])
   const [leaderboard, setLeaderboard] = useState<any[]>([])
+  const [isExporting, setIsExporting] = useState(false)
 
   const supabase = createClient()
 
@@ -133,28 +134,49 @@ export default function AdminReportsPage() {
   }
 
   const exportPDF = async () => {
-    const element = document.getElementById('report-analytics-section')
-    if (!element) return
+    setIsExporting(true)
+    setTimeout(async () => {
+      const element = document.getElementById('report-analytics-section')
+      if (!element) {
+        setIsExporting(false)
+        return
+      }
 
-    const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#FAF8F5' })
-    const imgData = canvas.toDataURL('image/png')
-    const pdf = new jsPDF('p', 'mm', 'a4')
-    const imgWidth = 210
-    const pageHeight = 295
-    const imgHeight = (canvas.height * imgWidth) / canvas.width
-    let heightLeft = imgHeight
-    let position = 0
+      try {
+        const canvas = await html2canvas(element, { 
+          scale: 2, 
+          backgroundColor: '#FAF8F5',
+          useCORS: true,
+          logging: false
+        })
+        const imgData = canvas.toDataURL('image/png')
+        
+        // Define A4 document sizing with margins
+        const pdf = new jsPDF('p', 'mm', 'a4')
+        const imgWidth = 190 // 210mm - 20mm (10mm margins on left and right)
+        const pageHeight = 277 // 297mm - 20mm (10mm margins on top and bottom)
+        const imgHeight = (canvas.height * imgWidth) / canvas.width
+        
+        let heightLeft = imgHeight
+        let position = 10 // 10mm top margin
 
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-    heightLeft -= pageHeight
+        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight)
+        heightLeft -= pageHeight
 
-    while (heightLeft >= 0) {
-      position = heightLeft - imgHeight
-      pdf.addPage()
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-      heightLeft -= pageHeight
-    }
-    pdf.save(`RMS_Sales_Report_${fromDate}_to_${toDate}.pdf`)
+        while (heightLeft >= 0) {
+          position = heightLeft - imgHeight + 10
+          pdf.addPage()
+          pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight)
+          heightLeft -= pageHeight
+        }
+        
+        pdf.save(`RMS_Sales_Report_${fromDate}_to_${toDate}.pdf`)
+      } catch (err) {
+        console.error('PDF export failed:', err)
+      } finally {
+        setIsExporting(false)
+      }
+    }, 100)
   }
 
   const totalRevenue = analytics.reduce((s, a) => s + Number(a.revenue), 0)
@@ -162,37 +184,62 @@ export default function AdminReportsPage() {
   const totalOrders = analytics.reduce((s, a) => s + Number(a.orders_count), 0)
 
   return (
-    <div className="animate-in" id="report-analytics-section">
-      {/* Header and filters */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '28px' }}>
-        <div className="page-header" style={{ marginBottom: 0 }}>
-          <h1>Reports &amp; Analytics</h1>
-          <p>System-wide sales, tax collections, payment modes, and performance leaderboards.</p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <input
-              id="report-from-date"
-              type="date"
-              className="input"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              style={{ minHeight: '36px', padding: '6px 12px', width: '150px' }}
-            />
-            <span style={{ color: 'var(--charcoal-soft)', fontSize: '13px' }}>to</span>
-            <input
-              id="report-to-date"
-              type="date"
-              className="input"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              style={{ minHeight: '36px', padding: '6px 12px', width: '150px' }}
-            />
+    <div className="animate-in" id="report-analytics-section" style={isExporting ? { padding: '20px 10px' } : undefined}>
+      {/* PDF Only Header */}
+      {isExporting && (
+        <div style={{
+          borderBottom: '2.5px solid var(--charcoal, #2c2c2c)',
+          paddingBottom: '16px',
+          marginBottom: '24px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-end',
+          color: 'var(--charcoal, #2c2c2c)',
+          fontFamily: 'system-ui, sans-serif'
+        }}>
+          <div>
+            <h2 style={{ fontSize: '20px', fontWeight: 800, margin: 0, textTransform: 'uppercase', letterSpacing: '-0.02em' }}>Restaurant Management System</h2>
+            <p style={{ fontSize: '12px', margin: '4px 0 0', color: 'var(--charcoal-soft, #555)', fontWeight: 600 }}>ANALYTICS & SALES PERFORMANCE REPORT</p>
           </div>
-          <button id="export-csv-btn" className="btn btn-secondary btn-sm" onClick={exportCSV}>CSV Export</button>
-          <button id="export-pdf-btn" className="btn btn-primary btn-sm" onClick={exportPDF}>PDF Export</button>
+          <div style={{ textAlign: 'right', fontSize: '11px', lineHeight: '1.4', color: 'var(--charcoal-soft, #555)' }}>
+            <div>Report Period: <strong>{fromDate}</strong> to <strong>{toDate}</strong></div>
+            <div>Generated: {new Date().toLocaleString()}</div>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Screen Only Header and filters */}
+      {!isExporting && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '28px' }}>
+          <div className="page-header" style={{ marginBottom: 0 }}>
+            <h1>Reports &amp; Analytics</h1>
+            <p>System-wide sales, tax collections, payment modes, and performance leaderboards.</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                id="report-from-date"
+                type="date"
+                className="input"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                style={{ minHeight: '36px', padding: '6px 12px', width: '150px' }}
+              />
+              <span style={{ color: 'var(--charcoal-soft)', fontSize: '13px' }}>to</span>
+              <input
+                id="report-to-date"
+                type="date"
+                className="input"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                style={{ minHeight: '36px', padding: '6px 12px', width: '150px' }}
+              />
+            </div>
+            <button id="export-csv-btn" className="btn btn-secondary btn-sm" onClick={exportCSV}>CSV Export</button>
+            <button id="export-pdf-btn" className="btn btn-primary btn-sm" onClick={exportPDF}>PDF Export</button>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '100px', fontSize: '16px', color: 'var(--charcoal-soft)' }}>
@@ -309,6 +356,24 @@ export default function AdminReportsPage() {
               </div>
             </div>
           </div>
+          
+          {/* PDF Only Footer */}
+          {isExporting && (
+            <div style={{
+              borderTop: '1px dashed var(--border-strong, #ccc)',
+              paddingTop: '12px',
+              marginTop: '30px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              fontSize: '10px',
+              color: 'var(--charcoal-soft, #555)',
+              fontFamily: 'system-ui, sans-serif'
+            }}>
+              <span>Restaurant Management System &copy; {new Date().getFullYear()}</span>
+              <span>Confidential · System Generated Report</span>
+            </div>
+          )}
         </div>
       )}
     </div>
