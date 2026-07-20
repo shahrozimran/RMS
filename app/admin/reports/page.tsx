@@ -145,7 +145,7 @@ export default function AdminReportsPage() {
       try {
         const canvas = await html2canvas(element, { 
           scale: 2, 
-          backgroundColor: '#FAF8F5',
+          backgroundColor: '#ffffff',
           useCORS: true,
           logging: false
         })
@@ -185,25 +185,63 @@ export default function AdminReportsPage() {
 
   return (
     <div className="animate-in" id="report-analytics-section" style={isExporting ? { padding: '20px 10px' } : undefined}>
+      {isExporting && (
+        <style>{`
+          #report-analytics-section {
+            background-color: #ffffff !important;
+            padding: 30px 24px !important;
+            border-radius: 20px;
+          }
+          #report-analytics-section .kpi-card {
+            border: 1px solid #e2e8f0 !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+          }
+          #report-analytics-section .surface-card {
+            background-color: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+          }
+          #report-analytics-section .data-table th {
+            background-color: #f8fafc !important;
+            color: #334155 !important;
+            border-bottom: 2px solid #e2e8f0 !important;
+            font-weight: 700 !important;
+          }
+          #report-analytics-section .data-table td {
+            border-bottom: 1px solid #f1f5f9 !important;
+            color: #475569 !important;
+          }
+        `}</style>
+      )}
+
       {/* PDF Only Header */}
       {isExporting && (
-        <div style={{
-          borderBottom: '2.5px solid var(--charcoal, #2c2c2c)',
-          paddingBottom: '16px',
-          marginBottom: '24px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-end',
-          color: 'var(--charcoal, #2c2c2c)',
-          fontFamily: 'system-ui, sans-serif'
-        }}>
-          <div>
-            <h2 style={{ fontSize: '20px', fontWeight: 800, margin: 0, textTransform: 'uppercase', letterSpacing: '-0.02em' }}>Restaurant Management System</h2>
-            <p style={{ fontSize: '12px', margin: '4px 0 0', color: 'var(--charcoal-soft, #555)', fontWeight: 600 }}>ANALYTICS & SALES PERFORMANCE REPORT</p>
-          </div>
-          <div style={{ textAlign: 'right', fontSize: '11px', lineHeight: '1.4', color: 'var(--charcoal-soft, #555)' }}>
-            <div>Report Period: <strong>{fromDate}</strong> to <strong>{toDate}</strong></div>
-            <div>Generated: {new Date().toLocaleString()}</div>
+        <div>
+          {/* Vibrant Gradient Bar */}
+          <div style={{
+            height: '6px',
+            background: 'linear-gradient(to right, #4f46e5, #3b82f6, #10b981)',
+            borderRadius: '3px 3px 0 0',
+            marginBottom: '16px'
+          }} />
+          <div style={{
+            borderBottom: '2.5px solid #e2e8f0',
+            paddingBottom: '16px',
+            marginBottom: '24px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-end',
+            color: '#1e293b',
+            fontFamily: 'system-ui, sans-serif'
+          }}>
+            <div>
+              <h2 style={{ fontSize: '20px', fontWeight: 800, margin: 0, textTransform: 'uppercase', letterSpacing: '-0.02em', color: '#0f172a' }}>Restaurant Management System</h2>
+              <p style={{ fontSize: '12px', margin: '4px 0 0', color: '#64748b', fontWeight: 600 }}>ANALYTICS & SALES PERFORMANCE REPORT</p>
+            </div>
+            <div style={{ textAlign: 'right', fontSize: '11px', lineHeight: '1.4', color: '#64748b' }}>
+              <div>Report Period: <strong style={{ color: '#0f172a' }}>{fromDate}</strong> to <strong style={{ color: '#0f172a' }}>{toDate}</strong></div>
+              <div>Generated: {new Date().toLocaleString()}</div>
+            </div>
           </div>
         </div>
       )}
@@ -249,30 +287,30 @@ export default function AdminReportsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* Summary KPIs */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-            <div className="kpi-card" id="rep-kpi-rev">
-              <div style={{ width:40, height:40, borderRadius:10, background:'var(--accent-bg)', border:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-dark)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+            <div className="kpi-card" id="rep-kpi-rev" style={isExporting ? { borderLeft: '4px solid #10B981', background: '#F0FDF4', boxShadow: 'none' } : undefined}>
+              <div style={{ width:40, height:40, borderRadius:10, background: isExporting ? '#DCFCE7' : 'var(--accent-bg)', border: isExporting ? '1px solid #A7F3D0' : '1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={isExporting ? '#059669' : 'var(--accent-dark)'} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
               </div>
               <div>
-                <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--charcoal)', letterSpacing:'-0.03em' }}>{formatCurrency(totalRevenue, currency)}</div>
+                <div style={{ fontSize: '28px', fontWeight: 800, color: isExporting ? '#047857' : 'var(--charcoal)', letterSpacing:'-0.03em' }}>{formatCurrency(totalRevenue, currency)}</div>
                 <div style={{ fontSize: '13px', color: 'var(--charcoal-soft)', marginTop: '2px' }}>Total Sales (Paid)</div>
               </div>
             </div>
-            <div className="kpi-card" id="rep-kpi-tax">
-              <div style={{ width:40, height:40, borderRadius:10, background:'var(--info-bg)', border:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--info)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <div className="kpi-card" id="rep-kpi-tax" style={isExporting ? { borderLeft: '4px solid #3B82F6', background: '#EFF6FF', boxShadow: 'none' } : undefined}>
+              <div style={{ width:40, height:40, borderRadius:10, background: isExporting ? '#DBEAFE' : 'var(--info-bg)', border: isExporting ? '1px solid #BFDBFE' : '1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={isExporting ? '#2563EB' : 'var(--info)'} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
               </div>
               <div>
-                <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--charcoal)', letterSpacing:'-0.03em' }}>{formatCurrency(totalTax, currency)}</div>
+                <div style={{ fontSize: '28px', fontWeight: 800, color: isExporting ? '#1D4ED8' : 'var(--charcoal)', letterSpacing:'-0.03em' }}>{formatCurrency(totalTax, currency)}</div>
                 <div style={{ fontSize: '13px', color: 'var(--charcoal-soft)', marginTop: '2px' }}>Tax Collected</div>
               </div>
             </div>
-            <div className="kpi-card" id="rep-kpi-orders">
-              <div style={{ width:40, height:40, borderRadius:10, background:'var(--success-bg)', border:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+            <div className="kpi-card" id="rep-kpi-orders" style={isExporting ? { borderLeft: '4px solid #8B5CF6', background: '#F5F3FF', boxShadow: 'none' } : undefined}>
+              <div style={{ width:40, height:40, borderRadius:10, background: isExporting ? '#EDE9FE' : 'var(--success-bg)', border: isExporting ? '1px solid #DDD6FE' : '1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={isExporting ? '#7C3AED' : 'var(--success)'} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
               </div>
               <div>
-                <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--charcoal)', letterSpacing:'-0.03em' }}>{totalOrders}</div>
+                <div style={{ fontSize: '28px', fontWeight: 800, color: isExporting ? '#6D28D9' : 'var(--charcoal)', letterSpacing:'-0.03em' }}>{totalOrders}</div>
                 <div style={{ fontSize: '13px', color: 'var(--charcoal-soft)', marginTop: '2px' }}>Total Orders Taken</div>
               </div>
             </div>
@@ -286,15 +324,15 @@ export default function AdminReportsPage() {
             ) : (
               <ResponsiveContainer width="100%" height={240}>
                 <LineChart data={analytics} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                  <XAxis dataKey="day" tick={{ fill: 'var(--charcoal-soft)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: 'var(--charcoal-soft)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={isExporting ? '#e2e8f0' : 'var(--border)'} vertical={false} />
+                  <XAxis dataKey="day" tick={{ fill: isExporting ? '#64748b' : 'var(--charcoal-soft)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: isExporting ? '#64748b' : 'var(--charcoal-soft)', fontSize: 11 }} axisLine={false} tickLine={false} />
                   <Tooltip
                     contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--charcoal)', boxShadow: 'var(--shadow-md)', fontSize: 13 }}
                     cursor={{ stroke: 'var(--border-strong)' }}
                     formatter={(v: any) => [formatCurrency(v, currency), 'Revenue']}
                   />
-                  <Line type="monotone" dataKey="revenue" stroke="var(--accent)" strokeWidth={2.5} dot={{ fill: 'var(--accent)', r: 4 }} />
+                  <Line type="monotone" dataKey="revenue" stroke={isExporting ? '#3B82F6' : 'var(--accent)'} strokeWidth={3} dot={{ fill: isExporting ? '#3B82F6' : 'var(--accent)', r: 5 }} />
                 </LineChart>
               </ResponsiveContainer>
             )}
