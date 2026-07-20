@@ -541,21 +541,30 @@ export default function StaffNewOrderPage() {
         {activeModProduct && (
           <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100
+            background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
+            padding: '40px'
           }}>
-            <div className="surface-card animate-in" style={{ padding: '24px', width: '340px' }}>
-              <h4 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '8px' }}>Customize: {activeModProduct.name}</h4>
-              <p style={{ fontSize: '12px', color: 'var(--charcoal-soft)', marginBottom: '16px' }}>Select toppings/options below</p>
+            <div className="surface-card animate-in" style={{ padding: '32px', width: '100%', maxWidth: '600px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <h4 style={{ fontSize: '20px', fontWeight: 700 }}>Customize: {activeModProduct.name}</h4>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => { setActiveModProduct(null); setActiveModVariant(null); }}
+                  style={{ fontSize: '20px', padding: '4px 10px', minHeight: '36px' }}
+                >
+                  ✕
+                </button>
+              </div>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '200px', overflowY: 'auto', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: 'calc(100vh - 280px)', overflowY: 'auto', marginBottom: '24px' }}>
                 {activeModProduct.modifiers?.map((m) => (
-                  <label key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', background: 'var(--surface-raised)', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', background: 'var(--surface-raised)', borderRadius: '10px', cursor: 'pointer', fontSize: '15px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <input
                         type="checkbox"
                         checked={selectedModsForActiveProduct.some(sm => sm.id === m.id)}
                         onChange={() => toggleModifierSelection(m)}
-                        style={{ width: '16px', height: '16px', accentColor: 'var(--accent)' }}
+                        style={{ width: '20px', height: '20px', accentColor: 'var(--accent)' }}
                       />
                       <span>{m.name}</span>
                     </div>
@@ -564,9 +573,9 @@ export default function StaffNewOrderPage() {
                 ))}
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setActiveModProduct(null); setActiveModVariant(null); }}>Cancel</button>
-                <button type="button" className="btn btn-primary btn-sm" onClick={addProductWithModifiersToCart}>Apply &amp; Add</button>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => { setActiveModProduct(null); setActiveModVariant(null); }}>Cancel</button>
+                <button type="button" className="btn btn-primary" onClick={addProductWithModifiersToCart}>Apply &amp; Add</button>
               </div>
             </div>
           </div>

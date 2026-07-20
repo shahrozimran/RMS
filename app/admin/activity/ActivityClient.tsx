@@ -21,6 +21,69 @@ interface ActivityClientProps {
   users: { id: string; name: string; username: string }[]
 }
 
+function DetailsViewer({ data, depth = 0 }: { data: any; depth?: number }) {
+  if (data === null || data === undefined) return <span style={{ color: 'var(--charcoal-soft)' }}>&mdash;</span>
+
+  if (typeof data === 'string') {
+    return <span style={{ fontSize: '13px', color: 'var(--charcoal)' }}>{data}</span>
+  }
+
+  if (typeof data === 'number' || typeof data === 'boolean') {
+    return <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--accent-dark)' }}>{String(data)}</span>
+  }
+
+  if (Array.isArray(data)) {
+    if (data.length === 0) return <span style={{ color: 'var(--charcoal-soft)', fontStyle: 'italic' }}>Empty list</span>
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {data.map((item, i) => (
+          <div key={i} style={{ display: 'flex', gap: '6px', alignItems: 'baseline' }}>
+            <span style={{ fontSize: '10px', color: 'var(--charcoal-soft)', minWidth: '18px', textAlign: 'right' }}>{i + 1}.</span>
+            <DetailsViewer data={item} depth={depth + 1} />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  if (typeof data === 'object') {
+    const entries = Object.entries(data).filter(([_, v]) => v !== null && v !== undefined && v !== '')
+    if (entries.length === 0) return <span style={{ color: 'var(--charcoal-soft)', fontStyle: 'italic' }}>No details</span>
+    return (
+      <div style={{
+        display: 'flex', flexDirection: 'column', gap: '4px',
+        padding: '8px 10px', background: 'var(--surface-raised)',
+        border: '1px solid var(--border)', borderRadius: '8px',
+        fontSize: '12px', maxHeight: '140px', overflowY: 'auto'
+      }}>
+        {entries.map(([key, value]) => {
+          const label = key.replace(/_/g, ' ')
+          if (typeof value === 'object' && value !== null) {
+            return (
+              <div key={key}>
+                <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--charcoal-soft)', textTransform: 'uppercase', letterSpacing: '0.3px', display: 'block', marginBottom: '2px' }}>{label}</span>
+                <div style={{ paddingLeft: '8px', borderLeft: '2px solid var(--border)' }}>
+                  <DetailsViewer data={value} depth={depth + 1} />
+                </div>
+              </div>
+            )
+          }
+          return (
+            <div key={key} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'baseline' }}>
+              <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--charcoal-soft)', whiteSpace: 'nowrap', textTransform: 'capitalize' }}>{label}:</span>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--charcoal)', textAlign: 'right', wordBreak: 'break-word' }}>
+                {String(value)}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  return <span style={{ fontSize: '13px', color: 'var(--charcoal)' }}>{String(data)}</span>
+}
+
 export default function ActivityClient({ initialLogs, users }: ActivityClientProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedEntity, setSelectedEntity] = useState('')
@@ -391,22 +454,7 @@ export default function ActivityClient({ initialLogs, users }: ActivityClientPro
                       </td>
                       <td>
                         {log.details ? (
-                          <pre style={{
-                            margin: 0,
-                            padding: '6px 8px',
-                            background: 'var(--surface-raised)',
-                            border: '1px solid var(--border)',
-                            borderRadius: '6px',
-                            fontSize: '11px',
-                            fontFamily: 'monospace',
-                            maxHeight: '80px',
-                            overflowY: 'auto',
-                            color: 'var(--charcoal)',
-                            whiteSpace: 'pre-wrap',
-                            wordBreak: 'break-all'
-                          }}>
-                            {JSON.stringify(log.details, null, 2)}
-                          </pre>
+                          <DetailsViewer data={log.details} />
                         ) : (
                           <span style={{ color: 'var(--charcoal-soft)' }}>&mdash;</span>
                         )}

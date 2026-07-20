@@ -250,7 +250,7 @@ export default function AdminDashboardClient({
                     <div style={{ fontSize:'13px', fontWeight:600, color:'var(--charcoal)' }}>
                       {o.order_type === 'dine_in' ? `Table ${o.table?.table_number ?? '?'}` : o.order_type.replace('_',' ')}
                     </div>
-                    <div style={{ fontSize:'12px', color:'var(--charcoal-soft)', marginTop:'2px' }}>{new Date(o.created_at).toLocaleTimeString()}</div>
+                    <div style={{ fontSize:'12px', color:'var(--charcoal-soft)', marginTop:'2px' }}>{new Date(o.created_at).toLocaleTimeString('en-US')}</div>
                   </div>
                   <div style={{ textAlign:'right' }}>
                     <div style={{ fontSize:'14px', fontWeight:700, color:'var(--charcoal)' }}>{fmt(o.total)}</div>

@@ -4,6 +4,70 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { SUPPORTED_CURRENCIES, type CurrencyConfig } from '@/lib/utils/currency'
 
+const COUNTRY_CODES = [
+  { code: '+1', label: 'US +1' },
+  { code: '+44', label: 'UK +44' },
+  { code: '+91', label: 'IN +91' },
+  { code: '+61', label: 'AU +61' },
+  { code: '+86', label: 'CN +86' },
+  { code: '+81', label: 'JP +81' },
+  { code: '+49', label: 'DE +49' },
+  { code: '+33', label: 'FR +33' },
+  { code: '+39', label: 'IT +39' },
+  { code: '+7', label: 'RU +7' },
+  { code: '+55', label: 'BR +55' },
+  { code: '+82', label: 'KR +82' },
+  { code: '+65', label: 'SG +65' },
+  { code: '+60', label: 'MY +60' },
+  { code: '+63', label: 'PH +63' },
+  { code: '+62', label: 'ID +62' },
+  { code: '+66', label: 'TH +66' },
+  { code: '+84', label: 'VN +84' },
+  { code: '+971', label: 'AE +971' },
+  { code: '+966', label: 'SA +966' },
+  { code: '+964', label: 'IQ +964' },
+  { code: '+20', label: 'EG +20' },
+  { code: '+27', label: 'ZA +27' },
+  { code: '+234', label: 'NG +234' },
+  { code: '+254', label: 'KE +254' },
+  { code: '+52', label: 'MX +52' },
+  { code: '+54', label: 'AR +54' },
+  { code: '+56', label: 'CL +56' },
+  { code: '+57', label: 'CO +57' },
+  { code: '+31', label: 'NL +31' },
+  { code: '+34', label: 'ES +34' },
+  { code: '+351', label: 'PT +351' },
+  { code: '+46', label: 'SE +46' },
+  { code: '+47', label: 'NO +47' },
+  { code: '+45', label: 'DK +45' },
+  { code: '+358', label: 'FI +358' },
+  { code: '+30', label: 'GR +30' },
+  { code: '+90', label: 'TR +90' },
+  { code: '+972', label: 'IL +972' },
+  { code: '+64', label: 'NZ +64' },
+  { code: '+353', label: 'IE +353' },
+  { code: '+41', label: 'CH +41' },
+  { code: '+43', label: 'AT +43' },
+  { code: '+32', label: 'BE +32' },
+  { code: '+48', label: 'PL +48' },
+  { code: '+36', label: 'HU +36' },
+  { code: '+40', label: 'RO +40' },
+  { code: '+380', label: 'UA +380' },
+  { code: '+92', label: 'PK +92' },
+  { code: '+880', label: 'BD +880' },
+  { code: '+977', label: 'NP +977' },
+  { code: '+94', label: 'LK +94' },
+]
+
+function parsePhone(value: string): { countryCode: string; number: string } {
+  for (const c of COUNTRY_CODES) {
+    if (value.startsWith(c.code)) {
+      return { countryCode: c.code, number: value.slice(c.code.length) }
+    }
+  }
+  return { countryCode: '+1', number: value }
+}
+
 export default function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'currency' | 'payments'>('profile')
   const [loading, setLoading] = useState(true)
@@ -15,6 +79,7 @@ export default function AdminSettingsPage() {
   const [restaurantName, setRestaurantName] = useState('')
   const [restaurantAddress, setRestaurantAddress] = useState('')
   const [restaurantPhone, setRestaurantPhone] = useState('')
+  const [phoneCountryCode, setPhoneCountryCode] = useState('+1')
 
   const [selectedCurrencyCode, setSelectedCurrencyCode] = useState('USD')
   const [serviceChargeType, setServiceChargeType] = useState<'percentage' | 'flat'>('percentage')
@@ -42,7 +107,11 @@ export default function AdminSettingsPage() {
           const val = item.value as any
           if (item.key === 'restaurant_name') setRestaurantName(val)
           if (item.key === 'restaurant_address') setRestaurantAddress(val)
-          if (item.key === 'restaurant_phone') setRestaurantPhone(val)
+          if (item.key === 'restaurant_phone') {
+            const parsed = parsePhone(val || '')
+            setPhoneCountryCode(parsed.countryCode)
+            setRestaurantPhone(parsed.number)
+          }
           if (item.key === 'currency') setSelectedCurrencyCode(val.code)
           if (item.key === 'service_charge') {
             setServiceChargeType(val.type || 'percentage')
@@ -75,7 +144,7 @@ export default function AdminSettingsPage() {
         updates.push(
           { key: 'restaurant_name', value: restaurantName, updated_at: new Date().toISOString() },
           { key: 'restaurant_address', value: restaurantAddress, updated_at: new Date().toISOString() },
-          { key: 'restaurant_phone', value: restaurantPhone, updated_at: new Date().toISOString() }
+          { key: 'restaurant_phone', value: phoneCountryCode + restaurantPhone, updated_at: new Date().toISOString() }
         )
       } else if (activeTab === 'currency') {
         const matchingConfig = SUPPORTED_CURRENCIES.find(c => c.code === selectedCurrencyCode) || SUPPORTED_CURRENCIES[0]
@@ -174,13 +243,33 @@ export default function AdminSettingsPage() {
                   </div>
                   <div className="input-group">
                     <label className="input-label" htmlFor="rest-phone">Contact Number</label>
-                    <input
-                      id="rest-phone"
-                      className="input"
-                      type="text"
-                      value={restaurantPhone}
-                      onChange={(e) => setRestaurantPhone(e.target.value)}
-                    />
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <select
+                        className="input"
+                        value={phoneCountryCode}
+                        onChange={(e) => setPhoneCountryCode(e.target.value)}
+                        style={{ width: '130px', flexShrink: 0 }}
+                      >
+                        {COUNTRY_CODES.map(cc => (
+                          <option key={cc.code} value={cc.code}>{cc.label}</option>
+                        ))}
+                      </select>
+                      <input
+                        id="rest-phone"
+                        className="input"
+                        type="tel"
+                        value={restaurantPhone}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '').slice(0, 15)
+                          setRestaurantPhone(val)
+                        }}
+                        placeholder="Phone number"
+                        style={{ flex: 1 }}
+                      />
+                    </div>
+                    <span style={{ fontSize: '11px', color: 'var(--charcoal-soft)', marginTop: '4px', display: 'block' }}>
+                      {phoneCountryCode}{restaurantPhone || ' '} &middot; Max 15 digits
+                    </span>
                   </div>
                 </>
               )}
