@@ -4,6 +4,7 @@ const cspHeader = `
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
   font-src 'self' https://fonts.gstatic.com;
   img-src 'self' data: https://*.supabase.co;
+  media-src 'self' data:;
   connect-src 'self' https://*.supabase.co wss://*.supabase.co;
   frame-ancestors 'none';
 `.replace(/\s{2,}/g, ' ').trim()
