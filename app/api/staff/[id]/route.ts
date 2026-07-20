@@ -8,13 +8,23 @@ import { hashPassword } from '@/lib/auth/staff-auth'
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession()
-    requirePermission(session, 'staff', 'read')
-    const supabase = await createAdminClient()
     const resolvedParams = await params
+    const targetId = resolvedParams.id === 'me' ? session?.id : resolvedParams.id
+
+    if (!targetId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Only enforce staff read permission if they are requesting someone else's data
+    if (session?.id !== targetId) {
+      requirePermission(session, 'staff', 'read')
+    }
+
+    const supabase = await createAdminClient()
     const { data, error } = await supabase
       .from('users')
       .select('id, name, username, email, phone, status, created_at, role:roles(id,name)')
-      .eq('id', resolvedParams.id)
+      .eq('id', targetId)
       .single()
     if (error) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     return NextResponse.json({ data })
