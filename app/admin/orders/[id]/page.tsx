@@ -339,6 +339,8 @@ export default function AdminOrderDetailPage() {
               <div>Time: {new Date(order.created_at).toLocaleTimeString()}</div>
               <div>Staff: {order.staff?.name || 'System'}</div>
               <div>Table: {order.order_type === 'dine_in' ? order.table?.table_number : 'Takeaway/Delivery'}</div>
+              <div>Customer: {order.customer_name || 'Guest'}</div>
+              {order.customer_phone && <div>Phone: {order.customer_phone}</div>}
             </div>
 
             <p style={{ margin: '8px 0', borderBottom: '1px dashed #000' }} />
