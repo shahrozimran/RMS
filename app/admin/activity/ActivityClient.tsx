@@ -146,6 +146,85 @@ export default function ActivityClient({ initialLogs, users }: ActivityClientPro
     return 'badge-gray'
   }
 
+  const renderDetails = (log: ActivityLog) => {
+    if (!log.details) return <span style={{ color: 'var(--charcoal-soft)' }}>&mdash;</span>
+
+    const details = log.details
+    const action = log.action.toUpperCase()
+    
+    try {
+      if (action.includes('CLOCK')) {
+        const timeVal = details.time ? new Date(details.time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''
+        return (
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+            <span className="badge badge-gray" style={{ fontSize: '11px' }}>Shift Time: {timeVal}</span>
+          </div>
+        )
+      }
+
+      if (action.includes('PAYMENT')) {
+        const method = Array.isArray(details.methods) ? details.methods.join(', ') : details.method || ''
+        const total = details.total !== undefined ? `$${Number(details.total).toFixed(2)}` : ''
+        return (
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {total && <span style={{ fontWeight: 600, color: 'var(--charcoal)' }}>{total}</span>}
+            {method && <span className="badge badge-blue" style={{ fontSize: '10px', textTransform: 'capitalize' }}>{method}</span>}
+          </div>
+        )
+      }
+
+      if (action.includes('ORDER')) {
+        const total = details.total !== undefined ? `$${Number(details.total).toFixed(2)}` : ''
+        const type = details.order_type ? details.order_type.replace('_', ' ') : ''
+        const items = details.items_count !== undefined ? `${details.items_count} items` : ''
+        return (
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', fontSize: '12px' }}>
+            {total && <span style={{ fontWeight: 600, color: 'var(--charcoal)' }}>{total}</span>}
+            {items && <span style={{ color: 'var(--charcoal-soft)' }}>({items})</span>}
+            {type && <span className="badge badge-gray" style={{ fontSize: '10px', textTransform: 'capitalize' }}>{type}</span>}
+          </div>
+        )
+      }
+
+      if (action.includes('LOGIN')) {
+        return (
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', fontSize: '12px' }}>
+            {details.role && <span>Role: <strong>{details.role}</strong></span>}
+            {details.username && <span style={{ color: 'var(--charcoal-soft)' }}>({details.username})</span>}
+          </div>
+        )
+      }
+    } catch (err) {
+      // Fallback
+    }
+
+    // Default key-value pair formatting
+    if (typeof details === 'object' && details !== null) {
+      const entries = Object.entries(details)
+      if (entries.length === 0) return <span style={{ color: 'var(--charcoal-soft)' }}>&mdash;</span>
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px' }}>
+          {entries.map(([key, val]) => {
+            let displayVal = ''
+            if (typeof val === 'object' && val !== null) {
+              displayVal = JSON.stringify(val)
+            } else {
+              displayVal = String(val)
+            }
+            return (
+              <div key={key} style={{ color: 'var(--charcoal-soft)' }}>
+                <span style={{ fontWeight: 600, color: 'var(--charcoal)', textTransform: 'capitalize' }}>{key.replace(/_/g, ' ')}:</span>{' '}
+                {displayVal}
+              </div>
+            )
+          })}
+        </div>
+      )
+    }
+
+    return <span style={{ fontSize: '12px' }}>{String(details)}</span>
+  }
+
   const handleClearFilters = () => {
     setSearchTerm('')
     setSelectedEntity('')
@@ -390,26 +469,7 @@ export default function ActivityClient({ initialLogs, users }: ActivityClientPro
                         )}
                       </td>
                       <td>
-                        {log.details ? (
-                          <pre style={{
-                            margin: 0,
-                            padding: '6px 8px',
-                            background: 'var(--surface-raised)',
-                            border: '1px solid var(--border)',
-                            borderRadius: '6px',
-                            fontSize: '11px',
-                            fontFamily: 'monospace',
-                            maxHeight: '80px',
-                            overflowY: 'auto',
-                            color: 'var(--charcoal)',
-                            whiteSpace: 'pre-wrap',
-                            wordBreak: 'break-all'
-                          }}>
-                            {JSON.stringify(log.details, null, 2)}
-                          </pre>
-                        ) : (
-                          <span style={{ color: 'var(--charcoal-soft)' }}>&mdash;</span>
-                        )}
+                        {renderDetails(log)}
                       </td>
                       <td style={{ fontSize: '13px', color: 'var(--charcoal-soft)', fontFamily: 'monospace' }}>
                         {log.ip_address || 'unknown'}
