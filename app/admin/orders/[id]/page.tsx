@@ -162,11 +162,42 @@ export default function AdminOrderDetailPage() {
     const element = receiptRef.current
     if (!element) return
 
-    const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#ffffff' })
-    const imgData = canvas.toDataURL('image/png')
-    const pdf = new jsPDF('p', 'mm', [80, 150]) // Standard 80mm roll size
-    pdf.addImage(imgData, 'PNG', 0, 0, 80, (canvas.height * 80) / canvas.width)
-    pdf.save(`RMS_Receipt_${order?.id.substring(0, 8)}.pdf`)
+    // Create a temporary container off-screen with a fixed width to ensure consistency
+    const printContainer = document.createElement('div')
+    printContainer.style.position = 'absolute'
+    printContainer.style.left = '-9999px'
+    printContainer.style.top = '-9999px'
+    printContainer.style.width = '378px' // 80mm at ~120 DPI, standard for thermal printing simulation
+    printContainer.style.background = '#ffffff'
+    printContainer.style.color = '#000000'
+    printContainer.style.fontFamily = 'Courier, monospace'
+    printContainer.style.padding = '24px 20px'
+    printContainer.innerHTML = element.innerHTML
+    
+    document.body.appendChild(printContainer)
+
+    try {
+      const canvas = await html2canvas(printContainer, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        logging: false
+      })
+      
+      const imgData = canvas.toDataURL('image/png')
+      
+      // Calculate height in mm to match the aspect ratio of the generated receipt
+      const pdfWidth = 80 // 80mm
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width
+      
+      const pdf = new jsPDF('p', 'mm', [pdfWidth, pdfHeight])
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+      pdf.save(`RMS_Receipt_${order?.id.substring(0, 8)}.pdf`)
+    } catch (err) {
+      console.error('PDF generation failed:', err)
+    } finally {
+      document.body.removeChild(printContainer)
+    }
   }
 
   if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading order transaction...</div>
@@ -196,7 +227,7 @@ export default function AdminOrderDetailPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '24px', alignItems: 'start' }}>
+      <div className="responsive-grid-split-340">
         {/* Core Audit Metrics & Details */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Metadata Card */}

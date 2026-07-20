@@ -130,7 +130,7 @@ export default function AdminDashboardClient({
       </div>
 
       {/* Charts row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '20px', marginBottom: '24px' }}>
+      <div className="responsive-grid-dashboard-charts" style={{ marginBottom: '24px' }}>
         {/* Top selling items bar chart */}
         <div className="surface-card" style={{ padding: '24px' }}>
           <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '20px', color: 'var(--charcoal)' }}>Top Selling Items</h3>
@@ -191,7 +191,7 @@ export default function AdminDashboardClient({
       </div>
 
       {/* Active Orders + Recent Orders */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+      <div className="responsive-grid-dashboard-orders">
         {/* Live Active Orders */}
         <div className="surface-card" style={{ padding: '24px' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px' }}>

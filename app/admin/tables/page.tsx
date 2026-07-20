@@ -234,7 +234,7 @@ export default function AdminTablesPage() {
           <p>Monitor, configure, and generate QR codes for your restaurant tables.</p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '24px', alignItems: 'start' }}>
+        <div className="responsive-grid-split-300">
           {/* Visual floor/table list */}
           <div className="surface-card" style={{ padding: '24px' }}>
             <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px' }}>Floor Layout</h3>

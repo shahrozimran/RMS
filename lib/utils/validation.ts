@@ -1,5 +1,10 @@
 import { z } from 'zod'
 
+export const phoneSchema = z
+  .string()
+  .trim()
+  .regex(/^\+?[0-9]{10,15}$/, 'Phone number must be between 10 and 15 digits (e.g. +1234567890 or 03001234567)')
+
 // ─── AUTH ────────────────────────────────────────────────────
 export const staffLoginSchema = z.object({
   username: z.string().min(1, 'Username is required'),
@@ -38,7 +43,7 @@ export const createStaffSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
   role_id:  z.number().int().positive(),
   email:    z.string().email().optional().or(z.literal('')),
-  phone:    z.string().max(20).optional(),
+  phone:    phoneSchema.optional().or(z.literal('')),
 })
 
 export const updateStaffSchema = createStaffSchema.partial().omit({ password: true }).extend({
@@ -70,7 +75,7 @@ export const createOrderSchema = z.object({
   items:         z.array(orderItemSchema).min(1, 'Order must have at least one item'),
   notes:         z.string().max(500).optional().nullable(),
   customer_name: z.string().max(100).optional().nullable(),
-  customer_phone:z.string().max(20).optional().nullable(),
+  customer_phone:phoneSchema.optional().nullable().or(z.literal('')),
   customer_address: z.string().max(300).optional().nullable(),
 })
 
@@ -118,7 +123,7 @@ export const discountSchema = z.object({
 export const restaurantProfileSchema = z.object({
   restaurant_name:    z.string().min(1).max(100),
   restaurant_address: z.string().max(200).optional(),
-  restaurant_phone:   z.string().max(30).optional(),
+  restaurant_phone:   phoneSchema.optional().or(z.literal('')),
 })
 
 export const currencySchema = z.object({

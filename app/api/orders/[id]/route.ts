@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { requirePermission, PermissionError } from '@/lib/auth/rbac'
-import { voidOrderSchema, processPaymentSchema } from '@/lib/utils/validation'
+import { voidOrderSchema, processPaymentSchema, createOrderSchema } from '@/lib/utils/validation'
 import { buildTaxSummary, calculateGrandTotal } from '@/lib/utils/tax'
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -41,6 +41,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     // If payload contains items, we perform a full order modification
     if (body.items && Array.isArray(body.items)) {
+      // Validate modify order payload
+      const parsed = createOrderSchema.safeParse(body)
+      if (!parsed.success) {
+        return NextResponse.json({ error: 'Validation error', details: parsed.error.flatten() }, { status: 400 })
+      }
       // 1. Fetch current order to verify it can be modified (only draft/active/billed)
       const { data: currentOrder, error: fetchError } = await supabase
         .from('orders')

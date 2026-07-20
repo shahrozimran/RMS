@@ -68,6 +68,14 @@ export default function AdminSettingsPage() {
     setError('')
     setSuccess('')
 
+    if (activeTab === 'profile') {
+      if (restaurantPhone.trim() && !/^\+?[0-9]{10,15}$/.test(restaurantPhone.trim())) {
+        setError('Restaurant contact number must be between 10 and 15 digits (e.g. +1234567890 or 03001234567)')
+        setSaving(false)
+        return
+      }
+    }
+
     try {
       const updates = []
 
@@ -116,7 +124,7 @@ export default function AdminSettingsPage() {
         <p>Configure restaurant profiles, billing parameters, currency format and checkout options.</p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: '24px', alignItems: 'start' }}>
+      <div className="responsive-grid-split-220">
         {/* Navigation Tabs */}
         <div className="surface-card" style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <button

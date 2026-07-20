@@ -64,6 +64,12 @@ export default function StaffDetailsClient({ staff, roles }: StaffDetailsClientP
     setError('')
     setSuccess('')
 
+    if (phone.trim() && !/^\+?[0-9]{10,15}$/.test(phone.trim())) {
+      setError('Contact number must be between 10 and 15 digits (e.g. +1234567890 or 03001234567)')
+      setSaving(false)
+      return
+    }
+
     if (!name.trim()) {
       setError('Name is required')
       setSaving(false)
@@ -163,7 +169,7 @@ export default function StaffDetailsClient({ staff, roles }: StaffDetailsClientP
     .slice(0, 2)
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '24px', alignItems: 'start' }}>
+    <div className="responsive-grid-split-280">
       
       {/* Left Column: Summary Info card */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>

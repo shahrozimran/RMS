@@ -47,6 +47,11 @@ export default function StaffForm({ roles }: StaffFormProps) {
     setError('')
 
     // Basic Validation
+    if (phone.trim() && !/^\+?[0-9]{10,15}$/.test(phone.trim())) {
+      setError('Contact number must be between 10 and 15 digits (e.g. +1234567890 or 03001234567)')
+      setLoading(false)
+      return
+    }
     if (!name.trim()) {
       setError('Full name is required')
       setLoading(false)

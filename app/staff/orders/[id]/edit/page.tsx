@@ -268,6 +268,10 @@ export default function StaffEditOrderPage() {
       setError('Please select a table for Dine-in orders')
       return
     }
+    if (customerPhone && !/^\+?[0-9]{10,15}$/.test(customerPhone.trim())) {
+      setError('Phone number must be between 10 and 15 digits (e.g. +1234567890 or 03001234567)')
+      return
+    }
     setSubmitting(true)
     setError('')
 
@@ -325,7 +329,7 @@ export default function StaffEditOrderPage() {
   if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading order items...</div>
 
   return (
-    <div className="animate-in" style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '20px', minHeight: 'calc(100vh - 100px)' }}>
+    <div className="animate-in responsive-grid-split-380" style={{ minHeight: 'calc(100vh - 100px)' }}>
       {/* Menu browser and setups */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {/* Order Setup Options */}

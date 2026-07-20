@@ -253,7 +253,7 @@ export default function StaffBillingPage() {
   const changeDue = cashGivenVal > grandTotal ? cashGivenVal - grandTotal : 0
 
   return (
-    <div className="animate-in" style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '20px', minHeight: 'calc(100vh - 100px)' }}>
+    <div className="animate-in responsive-grid-split-380" style={{ minHeight: 'calc(100vh - 100px)' }}>
       {/* Checkout and Payments Panel */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {/* Discount Code Form */}

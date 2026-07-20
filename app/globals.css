@@ -448,16 +448,69 @@ select.input {
 
 /* ─── RECEIPT PRINT ──────────────────────────────────────── */
 @media print {
-  body * { visibility: hidden; }
-  #receipt-content, #receipt-content * { visibility: visible; }
-  #receipt-content {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 80mm;
-    font-size: 12px;
-    color: #000;
+  /* Hide main application navigation, sidebars, buttons, and custom page decorations */
+  .sidebar,
+  .topbar,
+  .no-print,
+  button,
+  .btn,
+  a {
+    display: none !important;
   }
+
+  /* Reset main layouts and margins to prevent scrollbars and page shifts */
+  html, body, main, .admin-main {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    width: auto !important;
+    height: auto !important;
+  }
+
+  /* Hide active screen structures */
+  body {
+    visibility: hidden;
+  }
+
+  /* Enable visible printing only for targeted receipt / ticket elements */
+  #receipt-content,
+  #receipt-content *,
+  .print-kot,
+  .print-kot * {
+    visibility: visible !important;
+  }
+
+  /* Lock print area dimensions to standard thermal roll format */
+  #receipt-content,
+  .print-kot {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 80mm !important;
+    max-width: 80mm !important;
+    padding: 12px !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+  }
+
+  /* Keep table alignments clean under monochrome thermal conditions */
+  #receipt-content table,
+  .print-kot table {
+    display: table !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+  #receipt-content tr, .print-kot tr { display: table-row !important; }
+  #receipt-content th, .print-kot th,
+  #receipt-content td, .print-kot td { display: table-cell !important; }
 }
 
 /* ─── RESPONSIVE SIDEBAR ─────────────────────────────────── */
@@ -467,4 +520,69 @@ select.input {
   .sidebar-link { justify-content: center; padding: 10px; margin: 2px 4px; }
   .sidebar-link.active::before { display: none; }
   .admin-main { margin-left: var(--sidebar-collapsed) !important; }
+}
+
+/* ─── RESPONSIVE SPLIT VIEWS ──────────────────────────────── */
+.responsive-grid-dashboard-charts {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 20px;
+}
+
+.responsive-grid-dashboard-orders {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.responsive-grid-split-300 {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 24px;
+  align-items: start;
+}
+
+.responsive-grid-split-340 {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+  align-items: start;
+}
+
+.responsive-grid-split-380 {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 20px;
+}
+
+.responsive-grid-split-220 {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.responsive-grid-split-280 {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+/* Media Queries to collapse columns to single-column stacking */
+@media (max-width: 1024px) {
+  .responsive-grid-split-380 {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .responsive-grid-dashboard-charts,
+  .responsive-grid-dashboard-orders,
+  .responsive-grid-split-300,
+  .responsive-grid-split-340,
+  .responsive-grid-split-220,
+  .responsive-grid-split-280 {
+    grid-template-columns: 1fr !important;
+  }
 }

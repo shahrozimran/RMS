@@ -81,7 +81,7 @@ export default function StaffKitchenReceiptPage() {
   if (!order) return <div style={{ padding: '40px', textAlign: 'center' }}>Kitchen ticket not found.</div>
 
   return (
-    <div className="animate-in" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '24px', maxWidth: '800px', margin: '0 auto' }}>
+    <div className="animate-in responsive-grid-split-340" style={{ maxWidth: '800px', margin: '0 auto' }}>
       
       {/* Action Column */}
       <div className="surface-card no-print" style={{ padding: '24px', alignSelf: 'start' }}>
@@ -204,31 +204,7 @@ export default function StaffKitchenReceiptPage() {
         </div>
       </div>
 
-      <style jsx global>{`
-        @media print {
-          body {
-            background: #ffffff !important;
-            color: #000000 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-          }
-          .no-print {
-            display: none !important;
-          }
-          .sidebar, .topbar, .admin-main, main {
-            margin: 0 !important;
-            padding: 0 !important;
-            border: none !important;
-          }
-          .print-kot {
-            box-shadow: none !important;
-            border: none !important;
-            padding: 0 !important;
-            width: 80mm !important; /* Forces 80mm standard width */
-            max-width: 80mm !important;
-          }
-        }
-      `}</style>
+
     </div>
   )
 }
