@@ -20,6 +20,7 @@ export default function AdminTablesPage() {
   const [tableCount, setTableCount] = useState(10)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [mounted, setMounted] = useState(false)
 
   // Edit Table states
   const [editingTable, setEditingTable] = useState<Table | null>(null)
@@ -35,6 +36,7 @@ export default function AdminTablesPage() {
   const supabase = createClient()
 
   useEffect(() => {
+    setMounted(true)
     fetchTables()
     fetchTableCount()
 
@@ -224,6 +226,10 @@ export default function AdminTablesPage() {
     } finally {
       setRegenerating(false)
     }
+  }
+
+  if (!mounted) {
+    return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--charcoal-soft)' }}>Loading table management...</div>
   }
 
   return (
