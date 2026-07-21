@@ -6,7 +6,6 @@ import { formatCurrency, type CurrencyConfig } from '@/lib/utils/currency'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts'
 import Papa from 'papaparse'
 import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
 
 interface AnalyticsRow {
   day: string
@@ -135,48 +134,301 @@ export default function AdminReportsPage() {
 
   const exportPDF = async () => {
     setIsExporting(true)
-    setTimeout(async () => {
-      const element = document.getElementById('report-analytics-section')
-      if (!element) {
-        setIsExporting(false)
-        return
-      }
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const pageW = 210
+      const pageH = 297
+      const margin = 15
+      const contentW = pageW - margin * 2
+      let y = margin
 
-      try {
-        const canvas = await html2canvas(element, { 
-          scale: 2, 
-          backgroundColor: '#ffffff',
-          useCORS: true,
-          logging: false
-        })
-        const imgData = canvas.toDataURL('image/png')
-        
-        // Define A4 document sizing with margins
-        const pdf = new jsPDF('p', 'mm', 'a4')
-        const imgWidth = 190 // 210mm - 20mm (10mm margins on left and right)
-        const pageHeight = 277 // 297mm - 20mm (10mm margins on top and bottom)
-        const imgHeight = (canvas.height * imgWidth) / canvas.width
-        
-        let heightLeft = imgHeight
-        let position = 10 // 10mm top margin
+      // ── Palette ──────────────────────────────────────────────
+      const ACCENT  = [79,  70,  229] as [number, number, number]  // indigo
+      const BLUE    = [59,  130, 246] as [number, number, number]
+      const GREEN   = [16,  185, 129] as [number, number, number]
+      const DARK    = [15,  23,  42]  as [number, number, number]
+      const MID     = [71,  85,  105] as [number, number, number]
+      const SUBTLE  = [148, 163, 184] as [number, number, number]
+      const BG      = [248, 250, 252] as [number, number, number]
+      const WHITE   = [255, 255, 255] as [number, number, number]
 
-        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight)
-        heightLeft -= pageHeight
-
-        while (heightLeft >= 0) {
-          position = heightLeft - imgHeight + 10
+      // ── Helpers ───────────────────────────────────────────────
+      const checkPage = (needed: number) => {
+        if (y + needed > pageH - 15) {
           pdf.addPage()
-          pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight)
-          heightLeft -= pageHeight
+          y = margin
         }
-        
-        pdf.save(`RMS_Sales_Report_${fromDate}_to_${toDate}.pdf`)
-      } catch (err) {
-        console.error('PDF export failed:', err)
-      } finally {
-        setIsExporting(false)
       }
-    }, 100)
+
+      // Draw a full-width section table.
+      // Returns nothing; mutates the closure `y`.
+      const drawTable = (
+        title: string,
+        headers: string[],
+        rows: string[][],
+        colWidths: number[]
+      ) => {
+        const rowH    = 7
+        const headerH = 7
+        checkPage(headerH + Math.min(rows.length, 4) * rowH + 16)
+
+        // Section title
+        pdf.setFont('helvetica', 'bold')
+        pdf.setFontSize(11)
+        pdf.setTextColor(...DARK)
+        pdf.text(title, margin, y)
+        y += 6
+
+        // Header bar
+        pdf.setFillColor(...ACCENT)
+        pdf.rect(margin, y, contentW, headerH, 'F')
+        pdf.setFont('helvetica', 'bold')
+        pdf.setFontSize(8)
+        pdf.setTextColor(...WHITE)
+        let hx = margin + 3
+        headers.forEach((h, i) => {
+          pdf.text(h, hx, y + 4.8)
+          hx += colWidths[i]
+        })
+        y += headerH
+
+        // Data rows
+        rows.forEach((row, ri) => {
+          checkPage(rowH + 2)
+          if (ri % 2 === 0) {
+            pdf.setFillColor(...BG)
+            pdf.rect(margin, y, contentW, rowH, 'F')
+          }
+          pdf.setFont('helvetica', 'normal')
+          pdf.setFontSize(8)
+          pdf.setTextColor(...DARK)
+          let cx = margin + 3
+          row.forEach((cell, i) => {
+            pdf.text(String(cell), cx, y + 4.8)
+            cx += colWidths[i]
+          })
+          y += rowH
+        })
+
+        // Bottom rule
+        pdf.setDrawColor(...SUBTLE)
+        pdf.setLineWidth(0.2)
+        pdf.line(margin, y, margin + contentW, y)
+        y += 10
+      }
+
+      // ── Header ────────────────────────────────────────────────
+      // Tri-colour accent bar
+      pdf.setFillColor(...GREEN)
+      pdf.rect(0, 0, contentW / 3, 2.5, 'F')
+      pdf.setFillColor(...BLUE)
+      pdf.rect(contentW / 3, 0, contentW / 3, 2.5, 'F')
+      pdf.setFillColor(...ACCENT)
+      pdf.rect((contentW / 3) * 2, 0, pageW, 2.5, 'F')
+
+      y = 10
+      pdf.setFont('helvetica', 'bold')
+      pdf.setFontSize(15)
+      pdf.setTextColor(...DARK)
+      pdf.text('RESTAURANT MANAGEMENT SYSTEM', margin, y)
+
+      pdf.setFont('helvetica', 'normal')
+      pdf.setFontSize(8)
+      pdf.setTextColor(...MID)
+      pdf.text('ANALYTICS & SALES PERFORMANCE REPORT', margin, y + 5)
+
+      pdf.setFont('helvetica', 'normal')
+      pdf.setFontSize(8)
+      pdf.setTextColor(...MID)
+      pdf.text(`Report Period: ${fromDate}  –  ${toDate}`, pageW - margin, y, { align: 'right' })
+      pdf.text(`Generated: ${new Date().toLocaleString()}`, pageW - margin, y + 5, { align: 'right' })
+
+      y += 11
+      pdf.setDrawColor(...SUBTLE)
+      pdf.setLineWidth(0.3)
+      pdf.line(margin, y, pageW - margin, y)
+      y += 8
+
+      // ── KPI Cards ─────────────────────────────────────────────
+      const cardW = (contentW - 8) / 3
+      const cardH = 22
+      const kpis = [
+        { label: 'Total Sales (Paid)',  value: formatCurrency(totalRevenue, currency), color: GREEN  },
+        { label: 'Tax Collected',       value: formatCurrency(totalTax, currency),     color: BLUE   },
+        { label: 'Total Orders Taken',  value: String(totalOrders),                   color: ACCENT },
+      ]
+      kpis.forEach((kpi, i) => {
+        const cx = margin + i * (cardW + 4)
+        pdf.setFillColor(...BG)
+        pdf.roundedRect(cx, y, cardW, cardH, 2, 2, 'F')
+        pdf.setFillColor(...kpi.color)
+        pdf.rect(cx, y, 2.5, cardH, 'F')
+        pdf.setFont('helvetica', 'bold')
+        pdf.setFontSize(13)
+        pdf.setTextColor(...DARK)
+        pdf.text(kpi.value, cx + 6, y + 9)
+        pdf.setFont('helvetica', 'normal')
+        pdf.setFontSize(8)
+        pdf.setTextColor(...MID)
+        pdf.text(kpi.label, cx + 6, y + 17)
+      })
+      y += cardH + 12
+
+      // ── Daily Sales Chart ─────────────────────────────────────
+      if (analytics.length > 0) {
+        checkPage(65)
+        pdf.setFont('helvetica', 'bold')
+        pdf.setFontSize(11)
+        pdf.setTextColor(...DARK)
+        pdf.text('Daily Sales Trend', margin, y)
+        y += 6
+
+        const chartX = margin + 14
+        const chartW = contentW - 14
+        const chartH = 42
+        const chartY = y
+
+        pdf.setFillColor(...BG)
+        pdf.rect(chartX, chartY, chartW, chartH, 'F')
+
+        const maxRev = Math.max(...analytics.map(a => Number(a.revenue)), 1)
+        const N_GRID = 4
+
+        for (let gi = 0; gi <= N_GRID; gi++) {
+          const gy = chartY + chartH - (gi / N_GRID) * chartH
+          pdf.setDrawColor(...SUBTLE)
+          pdf.setLineWidth(0.15)
+          pdf.line(chartX, gy, chartX + chartW, gy)
+          pdf.setFont('helvetica', 'normal')
+          pdf.setFontSize(5.5)
+          pdf.setTextColor(...SUBTLE)
+          pdf.text(
+            currency.symbol + (maxRev * gi / N_GRID).toFixed(0),
+            chartX - 1, gy + 1, { align: 'right' }
+          )
+        }
+
+        const ptStep = analytics.length > 1 ? chartW / (analytics.length - 1) : chartW
+        const points = analytics.map((a, i) => ({
+          x: chartX + i * ptStep,
+          y: chartY + chartH - Math.max((Number(a.revenue) / maxRev) * chartH, 0)
+        }))
+
+        // Fill under line as a series of triangles
+        for (let fi = 0; fi < points.length - 1; fi++) {
+          const x1 = points[fi].x, y1 = points[fi].y
+          const x2 = points[fi + 1].x, y2 = points[fi + 1].y
+          const base = chartY + chartH
+          pdf.setFillColor(235, 239, 255)
+          pdf.triangle(x1, y1, x2, y2, x2, base, 'F')
+          pdf.triangle(x1, y1, x1, base, x2, base, 'F')
+        }
+
+        // Line
+        pdf.setDrawColor(...BLUE)
+        pdf.setLineWidth(0.9)
+        for (let li = 1; li < points.length; li++) {
+          pdf.line(points[li - 1].x, points[li - 1].y, points[li].x, points[li].y)
+        }
+
+        // Dots
+        pdf.setFillColor(...BLUE)
+        points.forEach(p => pdf.circle(p.x, p.y, 1.2, 'F'))
+
+        // X-axis labels
+        const maxL = Math.floor(chartW / 16)
+        const every = Math.max(1, Math.ceil(analytics.length / maxL))
+        analytics.forEach((a, i) => {
+          if (i % every === 0 || i === analytics.length - 1) {
+            pdf.setFont('helvetica', 'normal')
+            pdf.setFontSize(5.5)
+            pdf.setTextColor(...MID)
+            pdf.text(a.day.slice(5), chartX + i * ptStep, chartY + chartH + 4, { align: 'center' })
+          }
+        })
+
+        y = chartY + chartH + 10
+      }
+
+      // ── Tables ────────────────────────────────────────────────
+      if (leaderboard.length > 0) {
+        drawTable(
+          'Top Performing Staff',
+          ['#  Name', 'Username', 'Orders', 'Total Sales', 'Avg. Order'],
+          leaderboard.map((s, i) => [
+            `${i + 1}. ${s.name}`,
+            `@${s.username}`,
+            String(s.orders_count),
+            formatCurrency(s.total_revenue, currency),
+            formatCurrency(s.avg_order_value, currency),
+          ]),
+          [52, 38, 22, 38, 30]
+        )
+      }
+
+      if (payments.length > 0) {
+        drawTable(
+          'Payment Mode Summary',
+          ['Payment Method', 'Transactions', 'Total Captured'],
+          payments.map(p => [
+            p.method.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+            String(p.count),
+            formatCurrency(p.total, currency),
+          ]),
+          [80, 50, 50]
+        )
+      }
+
+      if (topItems.length > 0) {
+        drawTable(
+          'Top Menu Items',
+          ['Item Name', 'Qty Sold', 'Revenue'],
+          topItems.map((it, i) => [
+            `${i + 1}. ${it.product_name}`,
+            String(it.qty_sold),
+            formatCurrency(it.revenue, currency),
+          ]),
+          [110, 30, 40]
+        )
+      }
+
+      if (analytics.length > 0) {
+        drawTable(
+          'Daily Sales Breakdown',
+          ['Date', 'Orders', 'Revenue', 'Tax Collected', 'Avg. Order'],
+          analytics.map(a => [
+            a.day,
+            String(a.orders_count),
+            formatCurrency(a.revenue, currency),
+            formatCurrency(a.tax_collected, currency),
+            formatCurrency(a.avg_order_val, currency),
+          ]),
+          [42, 22, 42, 42, 32]
+        )
+      }
+
+      // ── Footer on every page ──────────────────────────────────
+      const totalPages = pdf.getNumberOfPages()
+      for (let pi = 1; pi <= totalPages; pi++) {
+        pdf.setPage(pi)
+        const fy = pageH - 8
+        pdf.setDrawColor(...SUBTLE)
+        pdf.setLineWidth(0.2)
+        pdf.line(margin, fy - 3, pageW - margin, fy - 3)
+        pdf.setFont('helvetica', 'normal')
+        pdf.setFontSize(7)
+        pdf.setTextColor(...SUBTLE)
+        pdf.text(`Restaurant Management System © ${new Date().getFullYear()}`, margin, fy)
+        pdf.text('Confidential · System Generated Report', pageW - margin, fy, { align: 'right' })
+        pdf.text(`Page ${pi} of ${totalPages}`, pageW / 2, fy, { align: 'center' })
+      }
+
+      pdf.save(`RMS_Sales_Report_${fromDate}_to_${toDate}.pdf`)
+    } catch (err) {
+      console.error('PDF export failed:', err)
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   const totalRevenue = analytics.reduce((s, a) => s + Number(a.revenue), 0)
@@ -184,70 +436,9 @@ export default function AdminReportsPage() {
   const totalOrders = analytics.reduce((s, a) => s + Number(a.orders_count), 0)
 
   return (
-    <div className="animate-in" id="report-analytics-section" style={isExporting ? { padding: '20px 10px' } : undefined}>
-      {isExporting && (
-        <style>{`
-          #report-analytics-section {
-            background-color: #ffffff !important;
-            padding: 30px 24px !important;
-            border-radius: 20px;
-          }
-          #report-analytics-section .kpi-card {
-            border: 1px solid #e2e8f0 !important;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
-          }
-          #report-analytics-section .surface-card {
-            background-color: #ffffff !important;
-            border: 1px solid #e2e8f0 !important;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
-          }
-          #report-analytics-section .data-table th {
-            background-color: #f8fafc !important;
-            color: #334155 !important;
-            border-bottom: 2px solid #e2e8f0 !important;
-            font-weight: 700 !important;
-          }
-          #report-analytics-section .data-table td {
-            border-bottom: 1px solid #f1f5f9 !important;
-            color: #475569 !important;
-          }
-        `}</style>
-      )}
-
-      {/* PDF Only Header */}
-      {isExporting && (
-        <div>
-          {/* Vibrant Gradient Bar */}
-          <div style={{
-            height: '6px',
-            background: 'linear-gradient(to right, #4f46e5, #3b82f6, #10b981)',
-            borderRadius: '3px 3px 0 0',
-            marginBottom: '16px'
-          }} />
-          <div style={{
-            borderBottom: '2.5px solid #e2e8f0',
-            paddingBottom: '16px',
-            marginBottom: '24px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-end',
-            color: '#1e293b',
-            fontFamily: 'system-ui, sans-serif'
-          }}>
-            <div>
-              <h2 style={{ fontSize: '20px', fontWeight: 800, margin: 0, textTransform: 'uppercase', letterSpacing: '-0.02em', color: '#0f172a' }}>Restaurant Management System</h2>
-              <p style={{ fontSize: '12px', margin: '4px 0 0', color: '#64748b', fontWeight: 600 }}>ANALYTICS & SALES PERFORMANCE REPORT</p>
-            </div>
-            <div style={{ textAlign: 'right', fontSize: '11px', lineHeight: '1.4', color: '#64748b' }}>
-              <div>Report Period: <strong style={{ color: '#0f172a' }}>{fromDate}</strong> to <strong style={{ color: '#0f172a' }}>{toDate}</strong></div>
-              <div>Generated: {new Date().toLocaleString()}</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Screen Only Header and filters */}
-      {!isExporting && (
+    <div className="animate-in">
+      {/* Header and filters */}
+      {(
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '28px' }}>
           <div className="page-header" style={{ marginBottom: 0 }}>
             <h1>Reports &amp; Analytics</h1>
@@ -274,7 +465,9 @@ export default function AdminReportsPage() {
               />
             </div>
             <button id="export-csv-btn" className="btn btn-secondary btn-sm" onClick={exportCSV}>CSV Export</button>
-            <button id="export-pdf-btn" className="btn btn-primary btn-sm" onClick={exportPDF}>PDF Export</button>
+            <button id="export-pdf-btn" className="btn btn-primary btn-sm" onClick={exportPDF} disabled={isExporting}>
+                {isExporting ? 'Generating PDF…' : 'PDF Export'}
+              </button>
           </div>
         </div>
       )}
@@ -284,33 +477,33 @@ export default function AdminReportsPage() {
           Computing analytics data...
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} id="report-analytics-section">
           {/* Summary KPIs */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-            <div className="kpi-card" id="rep-kpi-rev" style={isExporting ? { borderLeft: '4px solid #10B981', background: '#F0FDF4', boxShadow: 'none' } : undefined}>
-              <div style={{ width:40, height:40, borderRadius:10, background: isExporting ? '#DCFCE7' : 'var(--accent-bg)', border: isExporting ? '1px solid #A7F3D0' : '1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={isExporting ? '#059669' : 'var(--accent-dark)'} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+            <div className="kpi-card" id="rep-kpi-rev">
+              <div style={{ width:40, height:40, borderRadius:10, background: 'var(--accent-bg)', border: '1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-dark)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
               </div>
               <div>
-                <div style={{ fontSize: '28px', fontWeight: 800, color: isExporting ? '#047857' : 'var(--charcoal)', letterSpacing:'-0.03em' }}>{formatCurrency(totalRevenue, currency)}</div>
+                <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--charcoal)', letterSpacing:'-0.03em' }}>{formatCurrency(totalRevenue, currency)}</div>
                 <div style={{ fontSize: '13px', color: 'var(--charcoal-soft)', marginTop: '2px' }}>Total Sales (Paid)</div>
               </div>
             </div>
-            <div className="kpi-card" id="rep-kpi-tax" style={isExporting ? { borderLeft: '4px solid #3B82F6', background: '#EFF6FF', boxShadow: 'none' } : undefined}>
-              <div style={{ width:40, height:40, borderRadius:10, background: isExporting ? '#DBEAFE' : 'var(--info-bg)', border: isExporting ? '1px solid #BFDBFE' : '1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={isExporting ? '#2563EB' : 'var(--info)'} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <div className="kpi-card" id="rep-kpi-tax">
+              <div style={{ width:40, height:40, borderRadius:10, background: 'var(--info-bg)', border: '1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--info)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
               </div>
               <div>
-                <div style={{ fontSize: '28px', fontWeight: 800, color: isExporting ? '#1D4ED8' : 'var(--charcoal)', letterSpacing:'-0.03em' }}>{formatCurrency(totalTax, currency)}</div>
+                <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--charcoal)', letterSpacing:'-0.03em' }}>{formatCurrency(totalTax, currency)}</div>
                 <div style={{ fontSize: '13px', color: 'var(--charcoal-soft)', marginTop: '2px' }}>Tax Collected</div>
               </div>
             </div>
-            <div className="kpi-card" id="rep-kpi-orders" style={isExporting ? { borderLeft: '4px solid #8B5CF6', background: '#F5F3FF', boxShadow: 'none' } : undefined}>
-              <div style={{ width:40, height:40, borderRadius:10, background: isExporting ? '#EDE9FE' : 'var(--success-bg)', border: isExporting ? '1px solid #DDD6FE' : '1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={isExporting ? '#7C3AED' : 'var(--success)'} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+            <div className="kpi-card" id="rep-kpi-orders">
+              <div style={{ width:40, height:40, borderRadius:10, background: 'var(--success-bg)', border: '1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
               </div>
               <div>
-                <div style={{ fontSize: '28px', fontWeight: 800, color: isExporting ? '#6D28D9' : 'var(--charcoal)', letterSpacing:'-0.03em' }}>{totalOrders}</div>
+                <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--charcoal)', letterSpacing:'-0.03em' }}>{totalOrders}</div>
                 <div style={{ fontSize: '13px', color: 'var(--charcoal-soft)', marginTop: '2px' }}>Total Orders Taken</div>
               </div>
             </div>
@@ -324,15 +517,15 @@ export default function AdminReportsPage() {
             ) : (
               <ResponsiveContainer width="100%" height={240}>
                 <LineChart data={analytics} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={isExporting ? '#e2e8f0' : 'var(--border)'} vertical={false} />
-                  <XAxis dataKey="day" tick={{ fill: isExporting ? '#64748b' : 'var(--charcoal-soft)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: isExporting ? '#64748b' : 'var(--charcoal-soft)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                    <XAxis dataKey="day" tick={{ fill: 'var(--charcoal-soft)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: 'var(--charcoal-soft)', fontSize: 11 }} axisLine={false} tickLine={false} />
                   <Tooltip
                     contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--charcoal)', boxShadow: 'var(--shadow-md)', fontSize: 13 }}
                     cursor={{ stroke: 'var(--border-strong)' }}
                     formatter={(v: any) => [formatCurrency(v, currency), 'Revenue']}
                   />
-                  <Line type="monotone" dataKey="revenue" stroke={isExporting ? '#3B82F6' : 'var(--accent)'} strokeWidth={3} dot={{ fill: isExporting ? '#3B82F6' : 'var(--accent)', r: 5 }} />
+                  <Line type="monotone" dataKey="revenue" stroke="var(--accent)" strokeWidth={3} dot={{ fill: 'var(--accent)', r: 5 }} />
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -395,23 +588,6 @@ export default function AdminReportsPage() {
             </div>
           </div>
           
-          {/* PDF Only Footer */}
-          {isExporting && (
-            <div style={{
-              borderTop: '1px dashed var(--border-strong, #ccc)',
-              paddingTop: '12px',
-              marginTop: '30px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              fontSize: '10px',
-              color: 'var(--charcoal-soft, #555)',
-              fontFamily: 'system-ui, sans-serif'
-            }}>
-              <span>Restaurant Management System &copy; {new Date().getFullYear()}</span>
-              <span>Confidential · System Generated Report</span>
-            </div>
-          )}
         </div>
       )}
     </div>
