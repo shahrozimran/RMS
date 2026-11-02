@@ -35,6 +35,8 @@ Test order: `c56c409a-5a49-4eca-bd8c-e18af6a9046c`, customer label `DEPLOYMENT V
 
 The final live dashboard check exposed a nullable table relation represented as an object with a null table number. The dashboard now checks the table number before rendering its table label, so takeaway/delivery orders do not show `Table null`. The relation type reflects the nullable database projection.
 
+Fresh production page loads also revealed React hydration error 418: the server initially formatted order times in UTC while the browser formatted local time. The dashboard now uses matching server/initial-client date markup and switches to browser-local formatting after hydration. A regression check compares complete dashboard server markup across UTC and Asia/Karachi.
+
 ## Limits
 
 No real payment was collected. Concurrent production load and payment-gateway integrations were not tested. npm configuration/install-script warnings appeared in Vercel build logs; the production build completed successfully.
