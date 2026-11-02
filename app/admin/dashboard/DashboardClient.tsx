@@ -1,274 +1,47 @@
 'use client'
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { formatCurrency, type CurrencyConfig } from '@/lib/utils/currency'
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { ArrowUpRight, CalendarDays, ClipboardList, DollarSign, Flame, Plus, TableProperties, Users, UtensilsCrossed } from 'lucide-react'
+import { formatCurrency, type CurrencyConfig } from '@/lib/utils/currency'
 import { createClient } from '@/lib/supabase/client'
+import EmptyState from '@/components/ui/EmptyState'
 
-interface Props {
-  todayRevenue:     number
-  todayOrderCount:  number
-  activeOrderCount: number
-  staffOnlineCount: number
-  topItems:         any[]
-  recentOrders:     any[]
-  activeOrders:     any[]
-  currency:         CurrencyConfig
+export type DashboardOrder = { id: string; status: string; order_type: string; total: number; created_at: string; staff: {name: string} | null; table: {table_number: string} | null }
+export interface DashboardProps {
+  todayRevenue: number; todayOrderCount: number; activeOrderCount: number; staffOnlineCount: number;
+  topItems: { product_name: string; qty_sold: number }[]; recentOrders: DashboardOrder[]; activeOrders: DashboardOrder[];
+  currency: CurrencyConfig; preview?: boolean
 }
-
-const STATUS_COLORS: Record<string, string> = {
-  paid:     'var(--success)',
-  active:   'var(--accent-dark)',
-  billed:   'var(--info)',
-  void:     'var(--charcoal-soft)',
-  refunded: 'var(--warning)',
-}
-
-const STATUS_BG: Record<string, string> = {
-  paid:     'var(--success-bg)',
-  active:   'var(--accent-bg)',
-  billed:   'var(--info-bg)',
-  void:     'var(--surface-hover)',
-  refunded: 'var(--warning-bg)',
-}
-
-const PIE_COLORS = ['#C8A97E', '#3A6B8A', '#4A7C59', '#9C7A2E', '#9B3A3A']
-
-// KPI icons as SVG
-const KpiIcons = {
-  revenue: () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
-    </svg>
-  ),
-  orders: () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
-      <rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/>
-    </svg>
-  ),
-  active: () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-    </svg>
-  ),
-  staff: () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/>
-      <path d="M16 3.13a4 4 0 010 7.75M21 21v-2a4 4 0 00-3-3.85"/>
-    </svg>
-  ),
-}
-
-export default function AdminDashboardClient({
-  todayRevenue, todayOrderCount, activeOrderCount, staffOnlineCount,
-  topItems, recentOrders, activeOrders, currency,
-}: Props) {
-  const [liveOrders, setLiveOrders] = useState(activeOrders)
-
-  // Realtime subscription for active orders
+const badge = (status: string) => status === 'paid' ? 'badge-green' : status === 'active' ? 'badge-orange' : status === 'billed' ? 'badge-blue' : 'badge-gray'
+export default function AdminDashboardClient({todayRevenue,todayOrderCount,staffOnlineCount,topItems,recentOrders,activeOrders,currency,preview=false}: DashboardProps) {
+  const [liveOrders,setLiveOrders] = useState(activeOrders)
   useEffect(() => {
+    if (preview) return
     const supabase = createClient()
-    const channel = supabase
-      .channel('admin-orders')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        supabase.from('orders')
-          .select('id, status, order_type, total, created_at, staff:users!staff_id(name), table:tables(table_number)')
-          .in('status', ['active','billed'])
-          .order('created_at', { ascending: false })
-          .then(({ data }) => { if (data) setLiveOrders(data) })
-      })
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [])
-
-  const fmt = (n: number) => formatCurrency(n, currency)
-
-  const kpis = [
-    { id: 'kpi-revenue', label: "Today's Revenue",  value: fmt(todayRevenue),  IconC: KpiIcons.revenue, accent: 'var(--accent)' },
-    { id: 'kpi-orders',  label: "Today's Orders",   value: todayOrderCount,    IconC: KpiIcons.orders,  accent: 'var(--info)' },
-    { id: 'kpi-active',  label: 'Active Orders',     value: liveOrders.length,  IconC: KpiIcons.active,  accent: 'var(--success)' },
-    { id: 'kpi-staff',   label: 'Staff Accounts',    value: staffOnlineCount,   IconC: KpiIcons.staff,   accent: 'var(--charcoal-mid)' },
+    let active = true
+    const channel = supabase.channel('admin-orders').on('postgres_changes',{event:'*',schema:'public',table:'orders'},() => {
+      supabase.from('orders').select('id,status,order_type,total,created_at,staff:users!staff_id(name),table:tables(table_number)').in('status',['active','billed']).order('created_at',{ascending:false}).then(({data}) => { if(active && data) setLiveOrders(data as unknown as DashboardOrder[]) })
+    }).subscribe()
+    return () => { active=false; void supabase.removeChannel(channel) }
+  },[preview])
+  const fmt = (n: number) => formatCurrency(n,currency)
+  const href = (path: string,view: string) => preview ? `/preview?view=${view}` : path
+  const metrics = [
+    {label:"Today's revenue",value:fmt(todayRevenue),foot:'Completed payments today',Icon:DollarSign},
+    {label:"Today's orders",value:todayOrderCount,foot:'All order types combined',Icon:ClipboardList},
+    {label:'Orders in service',value:liveOrders.length,foot:'Active and awaiting payment',Icon:Flame},
+    {label:'Team accounts',value:staffOnlineCount,foot:'Your restaurant team',Icon:Users},
   ]
-
-  return (
-    <div className="animate-in">
-      {/* Page header */}
-      <div className="page-header">
-        <h1>Dashboard</h1>
-        <p>{new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}</p>
-      </div>
-
-      {/* KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: '16px', marginBottom: '28px' }}>
-        {kpis.map(k => (
-          <div key={k.id} id={k.id} className="kpi-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: 10,
-                background: `color-mix(in srgb, ${k.accent} 12%, white)`,
-                border: `1px solid color-mix(in srgb, ${k.accent} 20%, transparent)`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: k.accent,
-              }}>
-                <k.IconC />
-              </div>
-              <span style={{
-                fontSize: '11px', fontWeight: 600,
-                color: 'var(--charcoal-soft)',
-                background: 'var(--surface-raised)',
-                padding: '3px 9px', borderRadius: 999,
-                border: '1px solid var(--border)',
-              }}>Live</span>
-            </div>
-            <div>
-              <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--charcoal)', letterSpacing: '-0.03em', lineHeight: 1.1 }}>{k.value}</div>
-              <div style={{ fontSize: '13px', color: 'var(--charcoal-soft)', marginTop: '4px' }}>{k.label}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Charts row */}
-      <div className="responsive-grid-dashboard-charts" style={{ marginBottom: '24px' }}>
-        {/* Top selling items bar chart */}
-        <div className="surface-card" style={{ padding: '24px' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '20px', color: 'var(--charcoal)' }}>Top Selling Items</h3>
-          {topItems.length === 0
-            ? <div style={{ textAlign:'center', color:'var(--charcoal-soft)', padding:'40px 0', fontSize:'14px' }}>No sales data yet for today</div>
-            : (
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={topItems} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                  <XAxis dataKey="product_name" tick={{ fill: 'var(--charcoal-soft)', fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: 'var(--charcoal-soft)', fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <Tooltip
-                    contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--charcoal)', boxShadow: 'var(--shadow-md)', fontSize: 13 }}
-                    cursor={{ fill: 'var(--surface-raised)' }}
-                    formatter={(v: any) => [v, 'Qty Sold']}
-                  />
-                  <Bar dataKey="qty_sold" fill="var(--accent)" radius={[6,6,0,0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )
-          }
-        </div>
-
-        {/* Order type pie */}
-        <div className="surface-card" style={{ padding: '24px' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '20px', color: 'var(--charcoal)' }}>Order Types</h3>
-          {recentOrders.length === 0
-            ? <div style={{ textAlign:'center', color:'var(--charcoal-soft)', padding:'40px 0', fontSize:'14px' }}>No orders yet</div>
-            : (() => {
-                const typeMap = recentOrders.reduce((acc: any, o) => {
-                  acc[o.order_type] = (acc[o.order_type] || 0) + 1
-                  return acc
-                }, {})
-                const pieData = Object.entries(typeMap).map(([name, value]) => ({ name, value }))
-                return (
-                  <ResponsiveContainer width="100%" height={180}>
-                    <PieChart>
-                      <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={78} dataKey="value" paddingAngle={3}>
-                        {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--charcoal)', boxShadow: 'var(--shadow-md)', fontSize: 13 }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )
-              })()
-          }
-          <div style={{ display:'flex', flexWrap:'wrap', gap:'8px', marginTop:'12px' }}>
-            {['dine_in','takeaway','delivery'].map((t,i) => (
-              <span key={t} style={{ fontSize:'12px', color:'var(--charcoal-soft)', display:'flex', alignItems:'center', gap:'5px' }}>
-                <span style={{ width:8, height:8, borderRadius:'50%', background:PIE_COLORS[i], display:'inline-block' }}/>
-                {t.replace('_',' ')}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Active Orders + Recent Orders */}
-      <div className="responsive-grid-dashboard-orders">
-        {/* Live Active Orders */}
-        <div className="surface-card" style={{ padding: '24px' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px' }}>
-            <h3 style={{ fontSize:'14px', fontWeight:700, color:'var(--charcoal)' }}>Active Orders</h3>
-            <span className="badge badge-orange pulse-glow">{liveOrders.length} Live</span>
-          </div>
-          <div style={{ display:'flex', flexDirection:'column', gap:'8px', maxHeight:'280px', overflowY:'auto' }}>
-            {liveOrders.length === 0
-              ? <div style={{ textAlign:'center', color:'var(--charcoal-soft)', padding:'32px 0', fontSize:'14px' }}>No active orders right now</div>
-              : liveOrders.map((o: any) => (
-                <div key={o.id} style={{
-                  display:'flex', justifyContent:'space-between', alignItems:'center',
-                  padding:'11px 14px',
-                  background: 'var(--surface-raised)',
-                  border: '1px solid var(--border)',
-                  borderRadius:'10px',
-                }}>
-                  <div>
-                    <div style={{ fontSize:'13px', fontWeight:600, color:'var(--charcoal)' }}>
-                      {o.order_type === 'dine_in' ? `Table ${o.table?.table_number ?? '?'}` : o.order_type.replace('_',' ')}
-                    </div>
-                    <div style={{ fontSize:'12px', color:'var(--charcoal-soft)', marginTop:'2px' }}>{o.staff?.name ?? 'Unknown'}</div>
-                  </div>
-                  <div style={{ textAlign:'right' }}>
-                    <div style={{ fontSize:'14px', fontWeight:700, color:'var(--charcoal)' }}>{fmt(o.total)}</div>
-                    <span style={{
-                      fontSize:'11px',
-                      color: STATUS_COLORS[o.status] ?? 'var(--charcoal-soft)',
-                      background: STATUS_BG[o.status] ?? 'var(--surface-hover)',
-                      fontWeight:600,
-                      padding:'2px 8px', borderRadius:999,
-                      textTransform:'capitalize',
-                    }}>{o.status}</span>
-                  </div>
-                </div>
-              ))
-            }
-          </div>
-        </div>
-
-        {/* Recent Orders */}
-        <div className="surface-card" style={{ padding: '24px' }}>
-          <h3 style={{ fontSize:'14px', fontWeight:700, color:'var(--charcoal)', marginBottom:'16px' }}>Recent Orders</h3>
-          <div style={{ display:'flex', flexDirection:'column', gap:'8px', maxHeight:'280px', overflowY:'auto' }}>
-            {recentOrders.length === 0
-              ? <div style={{ textAlign:'center', color:'var(--charcoal-soft)', padding:'32px 0', fontSize:'14px' }}>No orders yet</div>
-              : recentOrders.map((o: any) => (
-                <div key={o.id} style={{
-                  display:'flex', justifyContent:'space-between', alignItems:'center',
-                  padding:'11px 14px',
-                  background: 'var(--surface-raised)',
-                  border: '1px solid var(--border)',
-                  borderRadius:'10px',
-                }}>
-                  <div>
-                    <div style={{ fontSize:'13px', fontWeight:600, color:'var(--charcoal)' }}>
-                      {o.order_type === 'dine_in' ? `Table ${o.table?.table_number ?? '?'}` : o.order_type.replace('_',' ')}
-                    </div>
-                    <div style={{ fontSize:'12px', color:'var(--charcoal-soft)', marginTop:'2px' }}>{new Date(o.created_at).toLocaleTimeString()}</div>
-                  </div>
-                  <div style={{ textAlign:'right' }}>
-                    <div style={{ fontSize:'14px', fontWeight:700, color:'var(--charcoal)' }}>{fmt(o.total)}</div>
-                    <span style={{
-                      fontSize:'11px',
-                      color: STATUS_COLORS[o.status] ?? 'var(--charcoal-soft)',
-                      background: STATUS_BG[o.status] ?? 'var(--surface-hover)',
-                      fontWeight:600,
-                      padding:'2px 8px', borderRadius:999,
-                      textTransform:'capitalize',
-                    }}>{o.status}</span>
-                  </div>
-                </div>
-              ))
-            }
-          </div>
-        </div>
-      </div>
+  return <div className="animate-in">
+    <div className="workspace-title"><div><span className="eyebrow">Your restaurant, at a glance</span><h1>A little clarity. A better service.</h1><p>Everything you need to keep your day running smoothly.</p></div><div className="workspace-title-actions"><span className="date-pill"><CalendarDays size={14}/>{new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span><Link href={href('/admin/pos','pos')} className="btn btn-primary"><Plus size={15}/>New order</Link></div></div>
+    <div className="metric-grid">{metrics.map(m => <div className="metric-card" key={m.label}><div className="metric-top"><span>{m.label}</span><span className="metric-icon"><m.Icon size={17}/></span></div><div className="metric-value num">{m.value}</div><div className="metric-foot">{m.foot}</div></div>)}</div>
+    <div className="dashboard-grid">
+      <section className="panel"><div className="panel-heading"><div><h2>The crowd favourites</h2><p>Most ordered dishes · last 30 days</p></div><span className="badge badge-green">By quantity</span></div><div className="chart-body">{topItems.length ? <ResponsiveContainer width="100%" height={250}><BarChart layout="vertical" data={topItems.slice(0,6)} margin={{top:10,right:22,left:0,bottom:0}}><CartesianGrid horizontal={false} stroke="#edf1ee" strokeDasharray="4 4"/><XAxis type="number" allowDecimals={false} axisLine={false} tickLine={false} tick={{fill:'#9aa69e',fontSize:9}}/><YAxis type="category" dataKey="product_name" width={125} axisLine={false} tickLine={false} tick={{fill:'#849087',fontSize:10}} interval={0} tickFormatter={v => String(v).length>19 ? String(v).slice(0,17)+'…' : String(v)}/><Tooltip cursor={{fill:'#f2f6f3'}} contentStyle={{border:'1px solid #e3e9e5',borderRadius:10,fontSize:12}}/><Bar dataKey="qty_sold" name="Items sold" fill="#4c9169" radius={[0,4,4,0]} maxBarSize={20}/></BarChart></ResponsiveContainer> : <EmptyState title="Your favourites will appear here" description="Completed sales will help you see what your guests love."/>}</div></section>
+      <section className="panel"><div className="panel-heading"><div><h2>How your guests order</h2><p>Based on {recentOrders.length} recent orders</p></div><UtensilsCrossed size={17} className="muted"/></div><div className="order-mix">{[{type:'dine_in',label:'Dine in',color:'#4c9169'},{type:'takeaway',label:'Takeaway',color:'#b6c8a6'},{type:'delivery',label:'Delivery',color:'#deb57a'}].map(t => {const count=recentOrders.filter(o => o.order_type===t.type).length;const percent=recentOrders.length ? Number((count/recentOrders.length*100).toFixed(1)) : 0;return <div key={t.type}><div className="mix-line"><span className="status-dot" style={{color:t.color}}/>{t.label}<strong>{percent}% <span className="muted">· {count}</span></strong></div><div className="mix-bar"><span style={{width:`${percent}%`,background:t.color}}/></div></div>})}</div><div className="quick-actions"><Link className="quick-action" href={href('/admin/menu','menu')}><UtensilsCrossed size={19}/>Manage menu</Link><Link className="quick-action" href={href('/admin/tables','tables')}><TableProperties size={19}/>Table plan</Link><Link className="quick-action" href={href('/admin/staff','team')}><Users size={19}/>Your team</Link></div></section>
     </div>
-  )
+    <div className="dashboard-grid dashboard-service-grid"><section className="panel"><div className="panel-heading"><div><h2>Recent orders</h2><p>A closer look at your latest service</p></div><Link href={href('/admin/orders','orders')}>View all orders<ArrowUpRight size={13}/></Link></div><div style={{overflowX:'auto'}}><table className="data-table"><thead><tr><th>Order</th><th>Guest / table</th><th>Type</th><th>Status</th><th style={{textAlign:'right'}}>Amount</th></tr></thead><tbody>{recentOrders.slice(0,6).map((o) => <tr key={o.id}><td><Link href={href(`/admin/orders/${o.id}`,'orders')} style={{fontWeight:650}}>#{o.id.slice(0,6).toUpperCase()}</Link><div className="muted" style={{fontSize:9,marginTop:5}}>{new Date(o.created_at).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}</div></td><td>{o.table ? `Table ${o.table.table_number}` : 'Walk-in guest'}<div className="muted" style={{fontSize:9,marginTop:5}}>{o.staff?.name || 'Unassigned'}</div></td><td style={{textTransform:'capitalize'}}>{o.order_type.replace('_',' ')}</td><td><span className={`badge ${badge(o.status)}`}>{o.status}</span></td><td className="num" style={{textAlign:'right',fontWeight:650}}>{fmt(o.total)}</td></tr>)}</tbody></table>{!recentOrders.length && <EmptyState title="A fresh start" description="New orders will appear here as your team takes them."/>}</div></section>
+    <section className="panel"><div className="panel-heading"><div><h2>On the floor</h2><p>Orders currently in service</p></div><span className="badge badge-green">{liveOrders.length} open</span></div>{liveOrders.length ? liveOrders.slice(0,6).map((o,i) => <Link className="live-order-row" key={o.id} href={href(`/admin/orders/${o.id}`,'orders')}><span className="order-number">{String(i+1).padStart(2,'0')}</span><div><strong>{o.table ? `Table ${o.table.table_number}` : o.order_type.replace('_',' ')}</strong><small>{o.staff?.name || 'Unassigned'} · {o.status === 'billed' ? 'Awaiting payment' : 'In service'}</small></div><span className="order-price num">{fmt(o.total)}</span><ArrowUpRight size={13} className="muted"/></Link>) : <EmptyState title="All caught up" description="Active orders will appear here during service."/>}</section></div>
+  </div>
 }

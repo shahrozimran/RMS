@@ -1,3 +1,5 @@
+import { requirePermission } from '@/lib/auth/rbac'
+import { apiError } from '@/lib/api/errors'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
@@ -13,6 +15,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    requirePermission(session, 'orders', 'write')
     const supabase = await createAdminClient()
 
     const { data, error } = await supabase
@@ -32,7 +35,5 @@ export async function GET(request: NextRequest) {
     if (error) throw error
 
     return NextResponse.json({ data: data || [] })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
-  }
+  } catch (error) { return apiError(error) }
 }

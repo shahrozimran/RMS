@@ -1,3 +1,4 @@
+import { apiError } from '@/lib/api/errors'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
@@ -33,7 +34,5 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     })
 
     return NextResponse.json({ success: true, data })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
-  }
+  } catch (error) { return apiError(error) }
 }

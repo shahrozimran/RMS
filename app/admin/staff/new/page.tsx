@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/lib/supabase/server'
+import { createAuthorizedAdminClient as createAdminClient } from '@/lib/auth/admin'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import StaffForm from './StaffForm'
@@ -11,7 +11,7 @@ export default async function NewStaffPage() {
   // Fetch roles to populate select options in the form
   const { data: roles } = await supabase
     .from('roles')
-    .select('id, name')
+    .select('id, name').neq('name', 'Admin')
     .order('id')
 
   const rolesList = roles ?? []
@@ -40,7 +40,7 @@ export default async function NewStaffPage() {
         </Link>
         <div className="page-header" style={{ marginBottom: 0 }}>
           <h1>Add Staff Member</h1>
-          <p>Provision a new cashier, waiter, manager, or admin account.</p>
+          <p>Provision a new cashier, waiter, or manager account.</p>
         </div>
       </div>
 

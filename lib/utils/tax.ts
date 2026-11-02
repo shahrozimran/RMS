@@ -12,15 +12,16 @@ export interface OrderItemForTax {
  * Calculate tax amount for a single order item.
  */
 export function calculateItemTax(item: OrderItemForTax): number {
-  const lineTotal = item.unit_price * item.quantity
-  return parseFloat(((lineTotal * item.tax_rate) / 100).toFixed(2))
+  const lineCents = Math.round(item.unit_price * 100) * item.quantity
+  const rateBasisPoints = Math.round(item.tax_rate * 100)
+  return Math.round(lineCents * rateBasisPoints / 10000) / 100
 }
 
 /**
  * Calculate line subtotal (before tax).
  */
 export function calculateItemSubtotal(item: { unit_price: number; quantity: number }): number {
-  return parseFloat((item.unit_price * item.quantity).toFixed(2))
+  return (Math.round(item.unit_price * 100) * item.quantity) / 100
 }
 
 /**
@@ -42,8 +43,8 @@ export function buildTaxSummary(items: OrderItemForTax[]): TaxSummary {
   const rateMap = new Map<number, { taxable_amount: number; tax_amount: number }>()
 
   for (const item of items) {
-    const lineTotal = item.unit_price * item.quantity
-    const tax = (lineTotal * item.tax_rate) / 100
+    const lineTotal = calculateItemSubtotal(item)
+    const tax = calculateItemTax(item)
     subtotal += lineTotal
     total_tax += tax
 
@@ -80,7 +81,7 @@ export function calculateGrandTotal(params: {
 }): { service_charge: number; total: number } {
   const service_charge =
     params.service_charge_type === 'percentage'
-      ? parseFloat(((params.subtotal * params.service_charge_value) / 100).toFixed(2))
+      ? Math.round(Math.round(params.subtotal * 100) * Math.round(params.service_charge_value * 100) / 10000) / 100
       : params.service_charge_value
 
   const total = parseFloat(

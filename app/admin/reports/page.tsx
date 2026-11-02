@@ -66,47 +66,17 @@ export default function AdminReportsPage() {
     const toISO = new Date(toDate + 'T23:59:59').toISOString()
 
     try {
-      // 1. Fetch Order Analytics RPC
-      const { data: analyticsRes, error: analyticError } = await supabase
-        .rpc('get_order_analytics', { p_from_date: fromISO, p_to_date: toISO })
-      if (analyticError) throw analyticError
-      setAnalytics((analyticsRes || []) as AnalyticsRow[])
-
-      // 2. Fetch Top Items RPC
-      const { data: topRes, error: topError } = await supabase
-        .rpc('get_top_items', { p_limit: 10, p_from_date: fromISO, p_to_date: toISO })
-      if (topError) throw topError
-      setTopItems((topRes || []) as TopItemRow[])
-
-      // 3. Fetch Payment Methods RPC
-      const { data: payRes, error: payError } = await supabase
-        .rpc('get_payment_method_split', { p_from_date: fromISO, p_to_date: toISO })
-      if (payError) throw payError
-      setPayments((payRes || []) as PaymentSplitRow[])
-
-      // 4. Fetch Staff Performance
-      const { data: staffList } = await supabase
-        .from('users')
-        .select('id, name, username')
-        .is('auth_user_id', null)
-
-      if (staffList) {
-        const perfData = await Promise.all(
-          staffList.map(async (s) => {
-            const { data: summary } = await supabase
-              .rpc('get_staff_sales_summary', { p_staff_id: s.id, p_from_date: fromISO, p_to_date: toISO })
-              .single() as { data: { orders_count: number; total_revenue: number; avg_order_value: number } | null; error: any }
-            return {
-              name: s.name,
-              username: s.username,
-              orders_count: (summary as any)?.orders_count || 0,
-              total_revenue: (summary as any)?.total_revenue || 0,
-              avg_order_value: (summary as any)?.avg_order_value || 0
-            }
-          })
-        )
-        setLeaderboard(perfData.sort((a,b) => b.total_revenue - a.total_revenue))
-      }
+      const [a,t,p,l] = await Promise.all([
+        supabase.rpc('get_order_analytics', { p_from_date: fromISO, p_to_date: toISO }),
+        supabase.rpc('get_top_items', { p_limit: 10, p_from_date: fromISO, p_to_date: toISO }),
+        supabase.rpc('get_payment_method_split', { p_from_date: fromISO, p_to_date: toISO }),
+        supabase.rpc('get_staff_leaderboard', { p_from_date: fromISO, p_to_date: toISO }),
+      ])
+      for (const response of [a,t,p,l]) if (response.error) throw response.error
+      setAnalytics(a.data || [])
+      setTopItems(t.data || [])
+      setPayments(p.data || [])
+      setLeaderboard(l.data || [])
     } catch (err: any) {
       console.error(err)
     } finally {
@@ -441,7 +411,7 @@ export default function AdminReportsPage() {
       {(
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '28px' }}>
           <div className="page-header" style={{ marginBottom: 0 }}>
-            <h1>Reports &amp; Analytics</h1>
+            <span className="eyebrow">A clearer picture of your business</span><h1>Good decisions start here.</h1>
             <p>System-wide sales, tax collections, payment modes, and performance leaderboards.</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>

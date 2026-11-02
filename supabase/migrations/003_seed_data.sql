@@ -111,10 +111,4 @@ INSERT INTO ingredients (name, unit, quantity_available, reorder_threshold, cost
 ('Heavy Cream',       'L',    10.0, 2.0,  3.50),
 ('Dark Chocolate',    'kg',    5.0, 1.0, 12.00);
 
--- ─── SAMPLE USERS / STAFF ────────────────────────────────────
--- Cashier: cashier_one / password123
--- Waiter: waiter_one / password123
-INSERT INTO users (name, username, password_hash, role_id, status) VALUES
-('Cashier One', 'cashier_one', '$2b$12$V.ORC6QnwMQsv6mLMABPR.VO76jzx88UTCWGz/DRjwCXzqHfXZqUO', 4, 'active'),
-('Waiter One',  'waiter_one',  '$2b$12$V.ORC6QnwMQsv6mLMABPR.VO76jzx88UTCWGz/DRjwCXzqHfXZqUO', 3, 'active');
-
+-- Staff accounts must be provisioned by an administrator with unique passwords.

@@ -1,93 +1,30 @@
+import { randomUUID } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
+import { requirePermission } from '@/lib/auth/rbac'
+import { apiError } from '@/lib/api/errors'
+import { readBody } from '@/lib/api/body'
 
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession()
-    if (!session || session.role !== 'Admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
-    const formData = await request.formData()
-    const file = formData.get('file') as Blob | null
-
-    if (!file) {
-      return NextResponse.json({ error: 'File is required' }, { status: 400 })
-    }
-
-    const supabase = await createAdminClient()
-    const fileName = `${Date.now()}-${(file as any).name || 'image.jpg'}`
-
-    // Upload to Supabase Storage
-    const buffer = Buffer.from(await file.arrayBuffer())
-    let uploadError: any = null
-
-    try {
-      const result = await supabase.storage
-        .from('menu-images')
-        .upload(fileName, buffer, {
-          contentType: file.type || 'image/jpeg',
-          cacheControl: '3600',
-          upsert: true
-        })
-      uploadError = result.error
-    } catch (e: any) {
-      uploadError = e
-    }
-
-    // Auto-heal: If bucket does not exist, try to create it and retry upload
-    if (uploadError) {
-      const errMsg = uploadError.message || ''
-      const isBucketMissing = 
-        errMsg.toLowerCase().includes('bucket not found') || 
-        errMsg.toLowerCase().includes('does not exist') ||
-        uploadError.status === 404 ||
-        uploadError.statusCode === '404' ||
-        uploadError.statusCode === 404
-
-      if (isBucketMissing) {
-        // Attempt to create the public bucket
-        const { error: createError } = await supabase.storage.createBucket('menu-images', {
-          public: true,
-          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp'],
-          fileSizeLimit: 5242880 // 5MB
-        })
-
-        if (!createError) {
-          // Retry the upload
-          const { error: retryError } = await supabase.storage
-            .from('menu-images')
-            .upload(fileName, buffer, {
-              contentType: file.type || 'image/jpeg',
-              cacheControl: '3600',
-              upsert: true
-            })
-          
-          if (!retryError) {
-            uploadError = null
-          } else {
-            uploadError = retryError
-          }
-        } else {
-          uploadError = new Error(`Failed to auto-create bucket: ${createError.message}. Orig upload error: ${errMsg}`)
-        }
-      }
-    }
-
-    if (uploadError) {
-      return NextResponse.json({ 
-        error: `Storage upload failed: ${uploadError.message}. Make sure the bucket 'menu-images' exists in Supabase storage and is public.` 
-      }, { status: 500 })
-    }
-
-    // Get public URL
-    const { data } = supabase.storage
-      .from('menu-images')
-      .getPublicUrl(fileName)
-
-    return NextResponse.json({ url: data.publicUrl })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
-  }
+    requirePermission(session, 'menu', 'write')
+    const body = await readBody(request, 6 * 1024 * 1024)
+    const form = await new Response(body, { headers: { 'Content-Type': request.headers.get('content-type') || '' } }).formData()
+    const file = form.get('file')
+    if (!(file instanceof File) || file.size < 12 || file.size > 5 * 1024 * 1024) return NextResponse.json({ error: 'An image of up to 5MB is required' }, { status: 400 })
+    const bytes = Buffer.from(await file.arrayBuffer())
+    const mime = bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])) ? 'image/png'
+      : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255 ? 'image/jpeg'
+      : /^GIF8[79]a$/.test(bytes.subarray(0,6).toString('ascii')) ? 'image/gif'
+      : bytes.toString('ascii',0,4) === 'RIFF' && bytes.toString('ascii',8,12) === 'WEBP' ? 'image/webp' : null
+    if (!mime || mime !== file.type) return NextResponse.json({ error: 'Only valid PNG, JPEG, GIF and WebP images are supported' }, { status: 400 })
+    const db = await createAdminClient()
+    const extensions: Record<string,string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp' }
+    const name = randomUUID() + '.' + extensions[mime]
+    const { error } = await db.storage.from('menu-images').upload(name, bytes, { contentType: mime, cacheControl: '3600', upsert: false })
+    if (error) throw error
+    return NextResponse.json({ url: db.storage.from('menu-images').getPublicUrl(name).data.publicUrl })
+  } catch (error) { return apiError(error) }
 }

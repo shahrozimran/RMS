@@ -1,3 +1,4 @@
+import { apiError } from '@/lib/api/errors'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
@@ -41,11 +42,8 @@ export async function POST(request: NextRequest) {
       details: { time: data.clock_in }
     })
 
-    // Redirect to staff dashboard to refresh state
-    return NextResponse.redirect(new URL('/staff/dashboard', request.url), { status: 303 })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
-  }
+    return NextResponse.json({ data }, { status: 201 })
+  } catch (error) { return apiError(error) }
 }
 
 export async function GET(request: NextRequest) {
@@ -68,7 +66,5 @@ export async function GET(request: NextRequest) {
 
     const activeShift = data && data.length > 0 ? data[0] : null
     return NextResponse.json({ activeShift })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
-  }
+  } catch (error) { return apiError(error) }
 }

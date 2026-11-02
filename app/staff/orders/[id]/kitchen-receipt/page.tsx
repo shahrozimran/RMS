@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { readSettings } from '@/lib/api/client'
 import Link from 'next/link'
 
 interface ModifierItem {
@@ -40,7 +40,6 @@ export default function StaffKitchenReceiptPage() {
   const [restaurantName, setRestaurantName] = useState('My Restaurant')
   const [loading, setLoading] = useState(true)
 
-  const supabase = createClient()
   const receiptRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -49,15 +48,8 @@ export default function StaffKitchenReceiptPage() {
   }, [id])
 
   const fetchSettings = async () => {
-    const { data } = await supabase
-      .from('system_settings')
-      .select('key, value')
-      .eq('key', 'restaurant_name')
-      .maybeSingle()
-
-    if (data?.value) {
-      setRestaurantName(data.value as string)
-    }
+    const data = (await readSettings()).find(s => s.key === 'restaurant_name')
+    if (data?.value) setRestaurantName(data.value)
   }
 
   const fetchOrderDetail = async () => {

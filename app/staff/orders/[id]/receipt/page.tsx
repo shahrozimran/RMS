@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { readSettings } from '@/lib/api/client'
 import { formatCurrency, type CurrencyConfig } from '@/lib/utils/currency'
 import Link from 'next/link'
 import jsPDF from 'jspdf'
@@ -56,7 +56,6 @@ export default function StaffReceiptPage() {
   const [restaurantPhone, setRestaurantPhone] = useState('+123456789')
   const [loading, setLoading] = useState(true)
 
-  const supabase = createClient()
   const receiptRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -65,19 +64,13 @@ export default function StaffReceiptPage() {
   }, [id])
 
   const fetchSettings = async () => {
-    const { data } = await supabase
-      .from('system_settings')
-      .select('key, value')
-      .in('key', ['currency', 'restaurant_name', 'restaurant_address', 'restaurant_phone'])
-
-    if (data) {
-      data.forEach(item => {
-        if (item.key === 'currency') setCurrency(item.value as any)
-        if (item.key === 'restaurant_name') setRestaurantName(item.value as string)
-        if (item.key === 'restaurant_address') setRestaurantAddress(item.value as string)
-        if (item.key === 'restaurant_phone') setRestaurantPhone(item.value as string)
-      })
-    }
+    const data = await readSettings()
+    data.forEach(item => {
+      if (item.key === 'currency') setCurrency(item.value)
+      if (item.key === 'restaurant_name') setRestaurantName(item.value)
+      if (item.key === 'restaurant_address') setRestaurantAddress(item.value)
+      if (item.key === 'restaurant_phone') setRestaurantPhone(item.value)
+    })
   }
 
   const fetchOrderDetail = async () => {

@@ -1,42 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
+import { requirePermission } from '@/lib/auth/rbac'
+import { apiError } from '@/lib/api/errors'
+import { z } from 'zod'
 
-/**
- * POST /api/qr/pending/[id]/reject
- * Staff/Admin only. Rejects a pending QR order.
- */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
+    requirePermission(session, 'orders', 'write')
     const { id } = await params
-    const supabase = await createAdminClient()
-
-    const { error } = await supabase
-      .from('qr_pending_orders')
-      .update({ status: 'rejected' })
-      .eq('id', id)
-      .eq('status', 'pending')
-
+    if (!z.uuid().safeParse(id).success) return NextResponse.json({ error: 'Invalid order ID' }, { status: 400 })
+    const db = await createAdminClient()
+    const { data, error } = await db.rpc('process_qr_order', { p_actor: session!.id, p_pending: id, p_confirm: false })
     if (error) throw error
-
-    await supabase.from('activity_logs').insert({
-      user_id: session.id,
-      action: 'REJECT_QR_ORDER',
-      entity_type: 'qr_pending_order',
-      entity_id: id,
-      details: { rejected_by: session.name },
-    })
-
-    return NextResponse.json({ success: true })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
-  }
+    return NextResponse.json(data)
+  } catch (error) { return apiError(error) }
 }

@@ -1,7 +1,9 @@
+import { apiError, pagination } from '@/lib/api/errors'
+import { readJson } from '@/lib/api/body'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
-import { requirePermission, PermissionError } from '@/lib/auth/rbac'
+import { requirePermission } from '@/lib/auth/rbac'
 import { createStaffSchema } from '@/lib/utils/validation'
 import { hashPassword, generatePassword } from '@/lib/auth/staff-auth'
 
@@ -11,30 +13,26 @@ export async function GET(request: NextRequest) {
     requirePermission(session, 'staff', 'read')
     const supabase = await createAdminClient()
     const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') ?? '1')
-    const limit = parseInt(searchParams.get('limit') ?? '20')
+    const { page, limit, from, to } = pagination(searchParams)
 
     const { data, error, count } = await supabase
       .from('users')
       .select('id, name, username, email, phone, status, created_at, role:roles(id,name)', { count: 'exact' })
-      .neq('role_id', null)
-      .not('auth_user_id', 'is', null).is('auth_user_id', null)  // staff only (no Supabase auth)
+      .not('role_id', 'is', null)
+      .is('auth_user_id', null)  // staff only (no Supabase auth)
       .order('created_at', { ascending: false })
-      .range((page - 1) * limit, page * limit - 1)
+      .range(from, to)
 
     if (error) throw error
     return NextResponse.json({ data, count, page, limit })
-  } catch (e: any) {
-    if (e instanceof PermissionError) return NextResponse.json({ error: e.message }, { status: 403 })
-    return NextResponse.json({ error: e.message }, { status: 500 })
-  }
+  } catch (error) { return apiError(error) }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession()
     requirePermission(session, 'staff', 'write')
-    const body = await request.json()
+    const body = await readJson(request)
     const parsed = createStaffSchema.safeParse(body)
     if (!parsed.success) return NextResponse.json({ error: 'Validation error', details: parsed.error.flatten() }, { status: 400 })
 
@@ -42,6 +40,8 @@ export async function POST(request: NextRequest) {
     const password_hash = await hashPassword(password)
 
     const supabase = await createAdminClient()
+    const { data: role } = await supabase.from('roles').select('name').eq('id', parsed.data.role_id).single()
+    if (!role || role.name === 'Admin') return NextResponse.json({ error: 'Provision administrators using the operator CLI' }, { status: 400 })
     const { data, error } = await supabase
       .from('users')
       .insert({
@@ -67,8 +67,5 @@ export async function POST(request: NextRequest) {
 
     // Return generated password only once (so admin can share with staff)
     return NextResponse.json({ data, generated_password: password }, { status: 201 })
-  } catch (e: any) {
-    if (e instanceof PermissionError) return NextResponse.json({ error: e.message }, { status: 403 })
-    return NextResponse.json({ error: e.message }, { status: 500 })
-  }
+  } catch (error) { return apiError(error) }
 }

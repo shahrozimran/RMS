@@ -27,6 +27,8 @@ const STATUS_CLASS: Record<string, string> = {
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
+  const [page, setPage] = useState(1)
+  const [count, setCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
@@ -49,7 +51,7 @@ export default function AdminOrdersPage() {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [statusFilter, typeFilter, sourceFilter])
+  }, [statusFilter, typeFilter, sourceFilter, page])
 
   const fetchCurrency = async () => {
     const { data } = await supabase.from('system_settings').select('value').eq('key', 'currency').single()
@@ -60,16 +62,17 @@ export default function AdminOrdersPage() {
     try {
       let query = supabase
         .from('orders')
-        .select('id, created_at, status, order_type, source, total, staff:users!staff_id(name), table:tables(table_number)')
-        .order('created_at', { ascending: false })
+        .select('id, created_at, status, order_type, source, total, staff:users!staff_id(name), table:tables(table_number)', { count: 'exact' })
+        .order('created_at', { ascending: false }).range((page-1)*50,page*50-1)
 
       if (statusFilter) query = query.eq('status', statusFilter)
       if (typeFilter) query = query.eq('order_type', typeFilter)
       if (sourceFilter) query = query.eq('source', sourceFilter)
 
-      const { data, error } = await query
+      const { data, error, count } = await query
       if (error) throw error
       setOrders((data as any) || [])
+      setCount(count || 0)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -82,7 +85,7 @@ export default function AdminOrdersPage() {
   return (
     <div className="animate-in">
       <div className="page-header">
-        <h1>Orders Oversight</h1>
+        <span className="eyebrow">Keep the service flowing</span><h1>Every order, in one place.</h1>
         <p>Real-time view of all restaurant transactions, billing status, and table sessions.</p>
       </div>
 
@@ -119,6 +122,11 @@ export default function AdminOrdersPage() {
       )}
 
       {/* Filters bar */}
+      <nav aria-label="Order pages" style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
+        <button className="btn btn-secondary btn-sm" disabled={page === 1 || loading} onClick={() => setPage(p => p-1)}>Previous</button>
+        <span>Page {page} · {count} orders</span>
+        <button className="btn btn-secondary btn-sm" disabled={page*50 >= count || loading} onClick={() => setPage(p => p+1)}>Next</button>
+      </nav>
       <div className="surface-card" style={{ padding: '16px', display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', alignItems: 'center' }}>
         <div className="input-group" style={{ width: '160px' }}>
           <label className="input-label" htmlFor="order-status-filter">Status</label>

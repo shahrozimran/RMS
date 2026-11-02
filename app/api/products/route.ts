@@ -1,23 +1,26 @@
+import { apiError, pagination } from '@/lib/api/errors'
+import { readJson } from '@/lib/api/body'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
-import { requirePermission, PermissionError } from '@/lib/auth/rbac'
+import { requirePermission } from '@/lib/auth/rbac'
 import { productSchema } from '@/lib/utils/validation'
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await getSession()
+    requirePermission(session, 'menu', 'read')
     const supabase = await createAdminClient()
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category')
     const available = searchParams.get('available')
-    const page = parseInt(searchParams.get('page') ?? '1')
-    const limit = parseInt(searchParams.get('limit') ?? '50')
+    const { page, limit, from, to } = pagination(searchParams, 50)
 
     let query = supabase
       .from('products')
       .select('*, category:categories(id,name)', { count: 'exact' })
       .order('created_at', { ascending: false })
-      .range((page - 1) * limit, page * limit - 1)
+      .range(from, to)
 
     if (category) query = query.eq('category_id', parseInt(category))
     if (available !== null && available !== '') query = query.eq('is_available', available === 'true')
@@ -26,9 +29,7 @@ export async function GET(request: NextRequest) {
     if (error) throw error
 
     return NextResponse.json({ data, count, page, limit })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
-  }
+  } catch (error) { return apiError(error) }
 }
 
 export async function POST(request: NextRequest) {
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     const session = await getSession()
     requirePermission(session, 'menu', 'write')
 
-    const body = await request.json()
+    const body = await readJson(request)
     const parsed = productSchema.safeParse(body)
     if (!parsed.success) return NextResponse.json({ error: 'Validation error', details: parsed.error.flatten() }, { status: 400 })
 
@@ -50,8 +51,5 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({ data }, { status: 201 })
-  } catch (e: any) {
-    if (e instanceof PermissionError) return NextResponse.json({ error: e.message }, { status: 403 })
-    return NextResponse.json({ error: e.message }, { status: 500 })
-  }
+  } catch (error) { return apiError(error) }
 }

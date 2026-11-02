@@ -58,14 +58,14 @@ export function hasRole(user: RBACUser | null | undefined, ...roles: string[]): 
  * Throws a 403 response if the user lacks the required permission.
  */
 export function requirePermission(user: RBACUser | null | undefined, resource: Resource, action: Action) {
+  if (!user) throw new PermissionError('Unauthorized', 401)
   if (!hasPermission(user, resource, action)) {
     throw new PermissionError(`Permission denied: ${resource}.${action}`)
   }
 }
 
 export class PermissionError extends Error {
-  status = 403
-  constructor(message: string) {
+  constructor(message: string, public status = 403) {
     super(message)
     this.name = 'PermissionError'
   }

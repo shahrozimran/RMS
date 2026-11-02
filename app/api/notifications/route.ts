@@ -1,3 +1,5 @@
+import { apiError } from '@/lib/api/errors'
+import { readJson } from '@/lib/api/body'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
@@ -18,9 +20,7 @@ export async function GET() {
 
     if (error) throw error
     return NextResponse.json({ data })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
-  }
+  } catch (error) { return apiError(error) }
 }
 
 export async function PUT(request: NextRequest) {
@@ -30,7 +30,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const body = await request.json()
+    const body = await readJson(request)
     const { id } = body
     if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 })
 
@@ -44,7 +44,5 @@ export async function PUT(request: NextRequest) {
 
     if (error) throw error
     return NextResponse.json({ data })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
-  }
+  } catch (error) { return apiError(error) }
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import QRCode from 'qrcode'
+import { ArrowUpRight, TableProperties, Users, QrCode, Info } from 'lucide-react'
 
 interface Table {
   id: number
@@ -21,6 +22,7 @@ export default function AdminTablesPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [mounted, setMounted] = useState(false)
+  const [statusFilter, setStatusFilter] = useState('all')
 
   // Edit Table states
   const [editingTable, setEditingTable] = useState<Table | null>(null)
@@ -85,19 +87,10 @@ export default function AdminTablesPage() {
     setSuccess('')
 
     try {
-      const { error: settingsError } = await supabase
-        .from('system_settings')
-        .upsert({
-          key: 'table_count',
-          value: { count: tableCount },
-          updated_at: new Date().toISOString()
-        })
-      if (settingsError) throw settingsError
-
-      const { data, error: rpcError } = await supabase.rpc('generate_tables', {
-        p_count: tableCount
-      })
-      if (rpcError) throw rpcError
+      const response = await fetch('/api/tables', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ count: tableCount }) })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error)
+      const data = result.data
 
       setSuccess(`Tables updated successfully: ${data}`)
       fetchTables()
@@ -124,11 +117,9 @@ export default function AdminTablesPage() {
     setSuccess('')
 
     try {
-      const { error: updateError } = await supabase
-        .from('tables')
-        .update({ capacity: editCapacity, status: editStatus })
-        .eq('id', editingTable.id)
-      if (updateError) throw updateError
+      const response = await fetch(`/api/tables/${editingTable.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ capacity: editCapacity, status: editStatus }) })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error)
 
       setSuccess(`Table ${editingTable.table_number} updated successfully!`)
       setEditingTable(null)
@@ -208,13 +199,10 @@ export default function AdminTablesPage() {
 
     setRegenerating(true)
     try {
-      // Generate new UUID on client and update in DB
-      const newToken = crypto.randomUUID()
-      const { error } = await supabase
-        .from('tables')
-        .update({ qr_token: newToken })
-        .eq('id', qrTable.id)
-      if (error) throw error
+      const response = await fetch(`/api/tables/${qrTable.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ regenerate_qr: true }) })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error)
+      const newToken = result.data.qr_token
 
       // Reload data and refresh modal
       await fetchTables()
@@ -235,10 +223,8 @@ export default function AdminTablesPage() {
   return (
     <>
       <div className="animate-in">
-        <div className="page-header">
-          <h1>Table Management</h1>
-          <p>Monitor, configure, and generate QR codes for your restaurant tables.</p>
-        </div>
+        <div className="workspace-title"><div><span className="eyebrow">A place for every guest</span><h1>A well-set floor.</h1><p>Manage seating, table availability and guest ordering QR codes.</p></div><span className="date-pill"><TableProperties size={14}/>{tables.length} tables · {tables.reduce((sum,t)=>sum+t.capacity,0)} seats</span></div>
+        <div className="metric-grid">{(['free','occupied','reserved','cleaning'] as const).map(status=><div key={status} className="metric-card"><div className="metric-top"><span style={{textTransform:'capitalize'}}>{status==='free'?'Available':status}</span><span className={`floor-status-dot ${status}`}/></div><div className="metric-value">{tables.filter(t=>t.status===status).length}</div><div className="metric-foot">{status==='free'?'Ready for your next guest':status==='occupied'?'Guests currently seated':status==='reserved'?'Held for a reservation':'Being prepared for service'}</div></div>)}</div>
 
         <div className="responsive-grid-split-300">
           {/* Visual floor/table list */}
@@ -266,36 +252,19 @@ export default function AdminTablesPage() {
                 ))}
               </div>
             ) : (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-                gap: '16px'
-              }}>
-                {tables.map((t) => (
+              <><div className="filter-tabs" style={{marginBottom:20}}>{['all','free','occupied','reserved','cleaning'].map(status=><button key={status} className={`filter-tab ${statusFilter===status?'active':''}`} onClick={()=>setStatusFilter(status)}>{status==='all'?'All tables':status==='free'?'Available':status.charAt(0).toUpperCase()+status.slice(1)}</button>)}</div><div className="live-floor-grid">
+                {tables.filter(t=>statusFilter==='all'||t.status===statusFilter).map((t) => (
                   <div key={t.id} style={{ position: 'relative' }}>
-                    <div
-                      className={`table-card ${t.status}`}
-                      onClick={() => openEditModal(t)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="7" width="18" height="3" rx="1"/><path d="M6 10v7M18 10v7M3 17h18"/></svg>
-                      <span style={{ fontSize: '16px', fontWeight: 700 }}>{t.table_number}</span>
-                      <span style={{ fontSize: '11px', opacity: 0.7 }}>Cap: {t.capacity || 4}</span>
-                      <span className={`badge ${
-                        t.status === 'free' ? 'badge-green' :
-                        t.status === 'occupied' ? 'badge-red' :
-                        t.status === 'reserved' ? 'badge-yellow' : 'badge-gray'
-                      }`} style={{ textTransform: 'capitalize', fontSize: '10px', padding: '2px 6px', marginTop: '4px' }}>
-                        {t.status}
-                      </span>
-                    </div>
+                    <button className={`floor-card ${t.status}`} onClick={()=>openEditModal(t)} style={{width:'100%'}} aria-label={`Edit table ${t.table_number}`}>
+                      <div className="row space-between"><span className={`floor-status-dot ${t.status}`}/><span>{t.status==='free'?'Available':t.status}</span></div><div className="floor-table-symbol"><i/><i/><TableProperties size={33} strokeWidth={1.2}/><i/><i/></div><strong>Table {t.table_number}</strong><small><Users size={11}/>{t.capacity} seats<ArrowUpRight size={13}/></small>
+                    </button>
 
                     {/* QR button */}
                     {t.qr_token && (
                       <button
                         id={`qr-btn-${t.id}`}
                         onClick={(e) => { e.stopPropagation(); openQrModal(t) }}
-                        title="View QR Code"
+                        title="View QR Code" aria-label={`View QR code for table ${t.table_number}`}
                         style={{
                           position: 'absolute', top: 6, right: 6,
                           width: 26, height: 26, borderRadius: 8,
@@ -314,11 +283,11 @@ export default function AdminTablesPage() {
                     )}
                   </div>
                 ))}
-              </div>
+              </div></>
             )}
             <div style={{ marginTop: '24px', padding: '12px 16px', background: 'var(--surface-raised)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--charcoal-soft)', display: 'flex', justifyContent: 'center', gap: '16px', flexWrap: 'wrap' }}>
-              <span>ℹ️ Click a table to edit capacity/status.</span>
-              <span>📷 Click the QR icon to view & download the table&apos;s QR code.</span>
+              <span className="row"><Info size={13}/>Select a table to update capacity or status.</span>
+              <span className="row"><QrCode size={13}/>Use the QR icon to view and print guest ordering codes.</span>
             </div>
           </div>
 
@@ -415,7 +384,7 @@ export default function AdminTablesPage() {
 
       {/* QR Code Modal */}
       {qrTable && (
-        <div 
+        <div
           onClick={() => { setQrTable(null); setQrDataUrl('') }}
           style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -423,14 +392,14 @@ export default function AdminTablesPage() {
             display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100
           }}
         >
-          <div 
+          <div
             onClick={(e) => e.stopPropagation()}
-            className="surface-card animate-in" 
-            style={{ 
-              padding: '32px', 
-              width: '100%', 
-              maxWidth: '400px', 
-              boxShadow: '0 20px 40px rgba(44,44,44,0.15), 0 0 0 1px rgba(200,169,126,0.2)', 
+            className="surface-card animate-in"
+            style={{
+              padding: '32px',
+              width: '100%',
+              maxWidth: '400px',
+              boxShadow: '0 20px 40px rgba(44,44,44,0.15), 0 0 0 1px rgba(44,121,85,0.2)',
               textAlign: 'center',
               border: '2px solid var(--accent)',
               borderRadius: '20px',
@@ -449,17 +418,17 @@ export default function AdminTablesPage() {
               </div>
               <button
                 onClick={() => { setQrTable(null); setQrDataUrl('') }}
-                style={{ 
-                  background: 'var(--surface-raised)', 
-                  border: '1px solid var(--border)', 
-                  borderRadius: 10, 
-                  width: 34, 
-                  height: 34, 
-                  cursor: 'pointer', 
-                  fontSize: 14, 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
+                style={{
+                  background: 'var(--surface-raised)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 10,
+                  width: 34,
+                  height: 34,
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   flexShrink: 0,
                   color: 'var(--charcoal-mid)',
                   transition: 'all 0.2s',
@@ -471,11 +440,11 @@ export default function AdminTablesPage() {
 
             {/* QR Image Container */}
             <div style={{
-              background: '#ffffff', 
-              borderRadius: '20px', 
-              padding: '20px', 
+              background: '#ffffff',
+              borderRadius: '20px',
+              padding: '20px',
               display: 'inline-block',
-              marginBottom: '20px', 
+              marginBottom: '20px',
               border: '2.5px solid var(--accent-light)',
               boxShadow: 'var(--shadow-md)',
               lineHeight: 0
@@ -490,10 +459,10 @@ export default function AdminTablesPage() {
             </div>
 
             {/* Table Number Title */}
-            <div style={{ 
-              fontSize: '24px', 
-              fontWeight: 800, 
-              color: 'var(--charcoal)', 
+            <div style={{
+              fontSize: '24px',
+              fontWeight: 800,
+              color: 'var(--charcoal)',
               marginBottom: '6px',
               fontFamily: "'Plus Jakarta Sans', sans-serif",
               letterSpacing: '-0.02em'
@@ -502,19 +471,19 @@ export default function AdminTablesPage() {
             </div>
 
             {/* Read-only URL box with Copy option */}
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
               gap: '6px',
-              marginBottom: '24px', 
-              background: 'var(--surface-raised)', 
+              marginBottom: '24px',
+              background: 'var(--surface-raised)',
               border: '1px solid var(--border)',
               borderRadius: '10px',
               padding: '6px 10px',
             }}>
-              <span style={{ 
-                fontSize: '11px', 
-                color: 'var(--charcoal-soft)', 
+              <span style={{
+                fontSize: '11px',
+                color: 'var(--charcoal-soft)',
                 fontFamily: 'monospace',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -524,7 +493,7 @@ export default function AdminTablesPage() {
               }}>
                 {qrUrl}
               </span>
-              <button 
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   navigator.clipboard.writeText(qrUrl);
@@ -568,7 +537,7 @@ export default function AdminTablesPage() {
                 🖨 Print Code
               </button>
             </div>
-            
+
             {/* Secondary Option: Regenerate */}
             <button
               id={`regen-qr-${qrTable.id}`}

@@ -1,11 +1,15 @@
 'use client'
 
+import type { Discount } from '@/lib/api/types'
+
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { apiGet, readSettings } from '@/lib/api/client'
 import { formatCurrency, type CurrencyConfig } from '@/lib/utils/currency'
-import { buildTaxSummary, calculateGrandTotal } from '@/lib/utils/tax'
+import { buildTaxSummary } from '@/lib/utils/tax'
+import { PAYMENT_METHODS, type PaymentMethod } from '@/lib/utils/payment-methods'
 import Link from 'next/link'
+import { ArrowLeft, CreditCard } from 'lucide-react'
 
 interface OrderItem {
   id: string
@@ -35,7 +39,6 @@ export default function StaffBillingPage() {
 
   const [order, setOrder] = useState<OrderDetail | null>(null)
   const [currency, setCurrency] = useState<CurrencyConfig>({ code: 'USD', symbol: '$', locale: 'en-US' })
-  const [serviceChargeSetting, setServiceChargeSetting] = useState({ type: 'percentage', value: 0 })
   const [availableMethods, setAvailableMethods] = useState<Record<string, boolean>>({ cash: true, card: true, upi: true })
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -48,16 +51,15 @@ export default function StaffBillingPage() {
   const [discountAmount, setDiscountAmount] = useState(0)
 
   // Payment allocations
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'upi'>('cash')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [cashTendered, setCashTendered] = useState('')
   const [transactionRef, setTransactionRef] = useState('')
 
   // Multi-method split billing state
   const [isSplitPayment, setIsSplitPayment] = useState(false)
-  const [splitAllocations, setSplitAllocations] = useState<{ method: 'cash' | 'card' | 'upi'; amount: number; cash_tendered?: number; ref?: string }[]>([])
+  const [splitAllocations, setSplitAllocations] = useState<{ method: PaymentMethod; amount: number; cash_tendered?: number; ref?: string }[]>([])
   const [tempAmount, setTempAmount] = useState('')
 
-  const supabase = createClient()
 
   useEffect(() => {
     fetchSettings()
@@ -65,18 +67,15 @@ export default function StaffBillingPage() {
   }, [id])
 
   const fetchSettings = async () => {
-    const { data } = await supabase
-      .from('system_settings')
-      .select('key, value')
-      .in('key', ['currency', 'service_charge', 'payment_methods'])
-
-    if (data) {
-      data.forEach(item => {
-        if (item.key === 'currency') setCurrency(item.value as any)
-        if (item.key === 'service_charge') setServiceChargeSetting(item.value as any)
-        if (item.key === 'payment_methods') setAvailableMethods(item.value as any)
-      })
-    }
+    const data = await readSettings()
+    data.forEach(item => {
+      if (item.key === 'currency') setCurrency(item.value)
+      if (item.key === 'payment_methods') {
+        setAvailableMethods(item.value)
+        const firstEnabled = PAYMENT_METHODS.find(method => item.value[method.id])
+        if (firstEnabled) setPaymentMethod(firstEnabled.id)
+      }
+    })
   }
 
   const fetchOrderDetail = async () => {
@@ -98,12 +97,9 @@ export default function StaffBillingPage() {
     setSuccess('')
 
     try {
-      const { data, error } = await supabase
-        .from('discounts')
-        .select('*')
-        .eq('code', discountCode.toUpperCase())
-        .eq('is_active', true)
-        .single()
+      const response = await apiGet<{data: Discount[]}>('/api/discounts?code=' + encodeURIComponent(discountCode.toUpperCase()))
+      const data = response.data?.find((d: { code: string }) => d.code === discountCode.toUpperCase())
+      const error = !data
 
       if (error || !data) {
         throw new Error('Invalid or expired discount code')
@@ -117,6 +113,7 @@ export default function StaffBillingPage() {
         throw new Error('This discount code usage limit has been reached')
       }
 
+      if (Number(order?.subtotal || 0) < Number(data.min_order_amount || 0)) throw new Error('Order is below the discount minimum')
       const calculatedAmt = data.type === 'percentage'
         ? (Number(order?.subtotal || 0) * data.value) / 100
         : data.value
@@ -130,6 +127,7 @@ export default function StaffBillingPage() {
   }
 
   const addSplitAllocation = () => {
+    if (!availableMethods[paymentMethod]) { setError('Choose an enabled payment method.'); return }
     const amt = parseFloat(tempAmount)
     if (isNaN(amt) || amt <= 0) {
       setError('Please enter a valid split amount')
@@ -187,7 +185,7 @@ export default function StaffBillingPage() {
       }
     }
 
-    const finalPaymentsPayload = isSplitPayment
+    const finalPaymentsPayload = grandTotal === 0 ? [] : isSplitPayment
       ? splitAllocations.map(a => ({
           method: a.method,
           amount: a.amount,
@@ -201,6 +199,9 @@ export default function StaffBillingPage() {
           transaction_ref: paymentMethod !== 'cash' ? transactionRef : null
         }]
 
+    if (finalPaymentsPayload.some(payment => !availableMethods[payment.method])) {
+      setError('A payment method is disabled. Update the payment selection.'); setSubmitting(false); return
+    }
     const totalPaid = finalPaymentsPayload.reduce((s, p) => s + p.amount, 0)
     if (Math.abs(totalPaid - grandTotal) > 0.01) {
       setError(`Payment mismatch: Allocated ${fmt(totalPaid)} out of ${fmt(grandTotal)}`)
@@ -238,15 +239,10 @@ export default function StaffBillingPage() {
 
   // Calculations
   const taxSummary = buildTaxSummary(order.order_items.map(i => ({ unit_price: i.unit_price, quantity: i.quantity, tax_rate: i.tax_rate })))
-  const { service_charge: computedSC, total: preDiscountTotal } = calculateGrandTotal({
-    subtotal: taxSummary.subtotal,
-    tax_amount: taxSummary.total_tax,
-    service_charge_type: serviceChargeSetting.type as any,
-    service_charge_value: serviceChargeSetting.value,
-    discount_amount: 0
-  })
+  const computedSC = Number(order.service_charge)
+  const preDiscountTotal = Number(order.subtotal) + Number(order.tax_amount) + computedSC
 
-  const grandTotal = Math.max(0, preDiscountTotal - discountAmount)
+  const grandTotal = Number(Math.max(0, preDiscountTotal - discountAmount).toFixed(2))
 
   // Cash change preview
   const cashGivenVal = parseFloat(cashTendered) || 0
@@ -254,6 +250,7 @@ export default function StaffBillingPage() {
 
   return (
     <div className="animate-in responsive-grid-split-380" style={{ minHeight: 'calc(100vh - 100px)' }}>
+      <div className="workspace-title billing-heading"><div><span className="eyebrow">A good ending to a great meal</span><h1>Settle the bill.</h1><p>Review the order, apply a discount and collect payment.</p></div><Link className="btn btn-secondary" href={`/staff/orders/${id}`}><ArrowLeft size={14}/>Back to order</Link></div>
       {/* Checkout and Payments Panel */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {/* Discount Code Form */}
@@ -285,7 +282,7 @@ export default function StaffBillingPage() {
 
         {/* Payment Modes Configurations */}
         <div className="surface-card" style={{ padding: '24px' }}>
-          <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '14px' }}>Payment Checkout</h3>
+          <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '14px' }}><CreditCard size={17}/>Payment checkout</h3>
 
           {/* Toggle standard / split payment */}
           <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
@@ -316,14 +313,12 @@ export default function StaffBillingPage() {
                   className="input"
                   value={paymentMethod}
                   onChange={e => {
-                    setPaymentMethod(e.target.value as any)
+                    setPaymentMethod(e.target.value as PaymentMethod)
                     setCashTendered('')
                     setTransactionRef('')
                   }}
                 >
-                  {availableMethods.cash && <option value="cash">💵 Cash Payment</option>}
-                  {availableMethods.card && <option value="card">💳 Card Terminal</option>}
-                  {availableMethods.upi && <option value="upi">📲 UPI Transfer / QR</option>}
+                  {PAYMENT_METHODS.filter(method=>availableMethods[method.id]).map(method=><option key={method.id} value={method.id}>{method.label}</option>)}
                 </select>
               </div>
 
@@ -365,7 +360,7 @@ export default function StaffBillingPage() {
                     id="trans-ref"
                     className="input"
                     type="text"
-                    placeholder="Enter auth code or UPI transaction ID"
+                    placeholder="Transaction or approval reference"
                     value={transactionRef}
                     onChange={e => setTransactionRef(e.target.value)}
                   />
@@ -378,10 +373,8 @@ export default function StaffBillingPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                 <div className="input-group">
                   <label className="input-label" htmlFor="split-method-select">Mode</label>
-                  <select id="split-method-select" className="input" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as any)}>
-                    <option value="cash">Cash</option>
-                    <option value="card">Card</option>
-                    <option value="upi">UPI</option>
+                  <select id="split-method-select" className="input" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as PaymentMethod)}>
+                    {PAYMENT_METHODS.filter(method=>availableMethods[method.id]).map(method=><option key={method.id} value={method.id}>{method.label}</option>)}
                   </select>
                 </div>
                 <div className="input-group">
@@ -423,7 +416,7 @@ export default function StaffBillingPage() {
                       <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                           <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>
-                            ● {a.method} - {fmt(a.amount)}
+                            {PAYMENT_METHODS.find(method=>method.id===a.method)?.label} · {fmt(a.amount)}
                           </span>
                           {a.method === 'cash' && a.cash_tendered && a.cash_tendered > a.amount && (
                             <span style={{ color: 'var(--success, #4a7c59)', fontSize: '11px', paddingLeft: '12px', marginTop: '2px' }}>

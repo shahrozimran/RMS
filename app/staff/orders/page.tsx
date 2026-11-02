@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { readSettings } from '@/lib/api/client'
 import { formatCurrency, type CurrencyConfig } from '@/lib/utils/currency'
 import Link from 'next/link'
 
@@ -25,43 +25,31 @@ const STATUS_CLASS: Record<string, string> = {
 
 export default function StaffOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
+  const [page, setPage] = useState(1)
+  const [count, setCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [currency, setCurrency] = useState<CurrencyConfig>({ code: 'USD', symbol: '$', locale: 'en-US' })
   const [error, setError] = useState('')
 
-  const supabase = createClient()
 
   useEffect(() => {
     fetchCurrency()
     fetchOrders()
-  }, [])
+  }, [page])
 
   const fetchCurrency = async () => {
-    const { data } = await supabase.from('system_settings').select('value').eq('key', 'currency').single()
+    const data = (await readSettings()).find(s => s.key === 'currency')
     if (data?.value) setCurrency(data.value as any)
   }
 
   const fetchOrders = async () => {
     try {
-      // 1. Get current logged in user (staff member)
-      const { data: { user } } = await supabase.auth.getUser()
-      const staffAuthId = user?.id
-
-      if (!staffAuthId) {
-        // Look for staff JWT cookie fallback via session details
-        // In client component we rely on supabase client session if available
-        // Or if we are custom staff logged in, we fetch from our local storage
-      }
-
-      // Check current session
-      const { data: sessionData } = await supabase.auth.getSession()
-
-      // Unified check: we query '/api/orders' which enforces staff filter on backend
-      const res = await fetch('/api/orders')
+      const res = await fetch(`/api/orders?page=${page}&limit=20`)
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
 
       setOrders(json.data || [])
+      setCount(json.count || 0)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -83,6 +71,11 @@ export default function StaffOrdersPage() {
 
       {error && <div className="badge badge-red" style={{ padding: '10px', borderRadius: '8px', marginBottom: '16px' }}>{error}</div>}
 
+      <nav aria-label="Order pages" style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
+        <button className="btn btn-secondary btn-sm" disabled={page === 1 || loading} onClick={() => setPage(p => p-1)}>Previous</button>
+        <span>Page {page} · {count} orders</span>
+        <button className="btn btn-secondary btn-sm" disabled={page*20 >= count || loading} onClick={() => setPage(p => p+1)}>Next</button>
+      </nav>
       <div className="surface-card" style={{ overflow: 'hidden' }}>
         {loading ? (
           <table className="data-table" style={{ animation: 'skeleton-pulse 1.5s infinite' }}>

@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/lib/supabase/server'
+import { createAuthorizedAdminClient as createAdminClient } from '@/lib/auth/admin'
 import type { Metadata } from 'next'
 import ActivityClient from './ActivityClient'
 
@@ -49,7 +49,7 @@ export default async function AdminActivityPage() {
   return (
     <div className="animate-in">
       <div className="page-header" style={{ marginBottom: '28px' }}>
-        <h1>System Activity Logs</h1>
+        <span className="eyebrow">Your restaurant activity</span><h1>The details behind your day.</h1>
         <p>Audit trail of all administrative operations, staff logins, and system changes.</p>
       </div>
 

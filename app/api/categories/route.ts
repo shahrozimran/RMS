@@ -1,11 +1,15 @@
+import { apiError } from '@/lib/api/errors'
+import { readJson } from '@/lib/api/body'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
-import { requirePermission, PermissionError } from '@/lib/auth/rbac'
+import { requirePermission } from '@/lib/auth/rbac'
 import { categorySchema } from '@/lib/utils/validation'
 
 export async function GET() {
   try {
+    const session = await getSession()
+    requirePermission(session, 'menu', 'read')
     const supabase = await createAdminClient()
     const { data, error } = await supabase
       .from('categories')
@@ -14,9 +18,7 @@ export async function GET() {
 
     if (error) throw error
     return NextResponse.json({ data })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
-  }
+  } catch (error) { return apiError(error) }
 }
 
 export async function POST(request: NextRequest) {
@@ -24,7 +26,7 @@ export async function POST(request: NextRequest) {
     const session = await getSession()
     requirePermission(session, 'menu', 'write')
 
-    const body = await request.json()
+    const body = await readJson(request)
     const parsed = categorySchema.safeParse(body)
     if (!parsed.success) return NextResponse.json({ error: 'Validation error', details: parsed.error.flatten() }, { status: 400 })
 
@@ -45,8 +47,5 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({ data }, { status: 201 })
-  } catch (e: any) {
-    if (e instanceof PermissionError) return NextResponse.json({ error: e.message }, { status: 403 })
-    return NextResponse.json({ error: e.message }, { status: 500 })
-  }
+  } catch (error) { return apiError(error) }
 }

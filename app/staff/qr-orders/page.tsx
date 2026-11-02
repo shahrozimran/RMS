@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { pollVisible } from '@/lib/utils/poll'
 import { useRouter } from 'next/navigation'
 
 interface PendingQrOrder {
@@ -34,7 +34,6 @@ export default function StaffQrOrdersWorkspace() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const prevCountRef = useRef(0)
-  const supabase = createClient()
 
   const fetchPending = useCallback(async () => {
     try {
@@ -67,20 +66,7 @@ export default function StaffQrOrdersWorkspace() {
       await Promise.all([fetchPending(), fetchHistory()])
       setLoading(false)
     }
-    init()
-
-    const channel = supabase
-      .channel('qr-orders-workspace')
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'qr_pending_orders' },
-        () => {
-          fetchPending()
-          fetchHistory()
-        }
-      )
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
+    return pollVisible(init)
   }, [fetchPending, fetchHistory])
 
   const handleConfirm = async (id: string) => {

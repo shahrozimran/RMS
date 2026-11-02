@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { readSettings } from '@/lib/api/client'
 import { formatCurrency, type CurrencyConfig } from '@/lib/utils/currency'
 import Link from 'next/link'
 
@@ -54,7 +54,6 @@ export default function StaffOrderDetailPage() {
   const [currency, setCurrency] = useState<CurrencyConfig>({ code: 'USD', symbol: '$', locale: 'en-US' })
   const [error, setError] = useState('')
 
-  const supabase = createClient()
 
   useEffect(() => {
     fetchCurrency()
@@ -62,7 +61,7 @@ export default function StaffOrderDetailPage() {
   }, [id])
 
   const fetchCurrency = async () => {
-    const { data } = await supabase.from('system_settings').select('value').eq('key', 'currency').single()
+    const data = (await readSettings()).find(s => s.key === 'currency')
     if (data?.value) setCurrency(data.value as any)
   }
 

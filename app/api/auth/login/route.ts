@@ -1,11 +1,15 @@
+import { readJson } from '@/lib/api/body'
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateStaff } from '@/lib/auth/staff-auth'
 import { staffLoginSchema } from '@/lib/utils/validation'
 import { createAdminClient } from '@/lib/supabase/server'
+import { clientKey, rateLimit } from '@/lib/api/rate-limit'
+import { ApiError, apiError } from '@/lib/api/errors'
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    await rateLimit('staff-login:' + clientKey(request), 60, 600)
+    const body = await readJson(request)
     const parsed = staffLoginSchema.safeParse(body)
 
     if (!parsed.success) {
@@ -50,7 +54,8 @@ export async function POST(request: NextRequest) {
     })
 
     return response
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message ?? 'Authentication failed' }, { status: 401 })
+  } catch (error) {
+    if (error instanceof ApiError || error instanceof SyntaxError) return apiError(error)
+    return NextResponse.json({ error: 'Invalid username or password' }, { status: 401 })
   }
 }

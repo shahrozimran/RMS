@@ -1,9 +1,15 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { pollVisible } from '@/lib/utils/poll'
+import { apiGet } from '@/lib/api/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { ArrowRight, ArrowUpRight, CalendarDays, ClipboardList, Clock3, DollarSign, Flame, LogIn, LogOut, Plus, QrCode } from 'lucide-react'
+import { readSettings } from '@/lib/api/client'
+import { DEFAULT_CURRENCY, formatCurrency, type CurrencyConfig } from '@/lib/utils/currency'
+import EmptyState from '@/components/ui/EmptyState'
+import WorkspaceLoading from '@/components/ui/WorkspaceLoading'
 
 /* ─── Types ─────────────────────────────────────────── */
 interface PendingQrOrder {
@@ -25,14 +31,13 @@ interface ActiveOrder {
 }
 
 /* ─── QR Incoming Orders Panel ───────────────────────── */
-function QrOrdersPanel() {
+function QrOrdersPanel({ currency }: { currency: CurrencyConfig }) {
   const router = useRouter()
   const [pendingOrders, setPendingOrders] = useState<PendingQrOrder[]>([])
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [actionErrors, setActionErrors] = useState<Record<string, string>>({})
   const prevCountRef = useRef(0)
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const supabase = createClient()
 
   const fetchPending = useCallback(async () => {
     try {
@@ -51,18 +56,8 @@ function QrOrdersPanel() {
   }, [])
 
   useEffect(() => {
-    fetchPending()
-
-    // Supabase realtime subscription on qr_pending_orders
-    const channel = supabase
-      .channel('qr-pending-panel')
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'qr_pending_orders' },
-        () => { fetchPending() }
-      )
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
+    // Custom staff sessions authenticate through the same-origin API.
+    return pollVisible(fetchPending)
   }, [fetchPending])
 
   const handleConfirm = async (id: string) => {
@@ -79,8 +74,8 @@ function QrOrdersPanel() {
       } else {
         fetchPending()
       }
-    } catch (e: any) {
-      setActionErrors(prev => ({ ...prev, [id]: e.message }))
+    } catch (e) {
+      setActionErrors(prev => ({ ...prev, [id]: e instanceof Error ? e.message : 'Unable to process this order.' }))
     } finally {
       setProcessingId(null)
     }
@@ -94,8 +89,8 @@ function QrOrdersPanel() {
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Failed to reject')
       fetchPending()
-    } catch (e: any) {
-      setActionErrors(prev => ({ ...prev, [id]: e.message }))
+    } catch (e) {
+      setActionErrors(prev => ({ ...prev, [id]: e instanceof Error ? e.message : 'Unable to process this order.' }))
     } finally {
       setProcessingId(null)
     }
@@ -111,8 +106,8 @@ function QrOrdersPanel() {
       </audio>
 
       <div style={{
-        background: 'linear-gradient(135deg, rgba(255,165,0,0.08), rgba(255,100,0,0.05))',
-        border: '1px solid rgba(255,165,0,0.25)',
+        background: 'linear-gradient(135deg, rgba(44,121,85,0.08), rgba(44,121,85,0.03))',
+        border: '1px solid rgba(44,121,85,0.25)',
         borderRadius: 16,
         padding: '20px 24px',
         marginBottom: 28,
@@ -120,8 +115,8 @@ function QrOrdersPanel() {
       }}>
         <style>{`
           @keyframes pulse-border {
-            0%, 100% { border-color: rgba(255,165,0,0.25); box-shadow: 0 0 0 0 rgba(255,165,0,0); }
-            50% { border-color: rgba(255,165,0,0.5); box-shadow: 0 0 0 6px rgba(255,165,0,0.05); }
+            0%, 100% { border-color: rgba(44,121,85,0.25); box-shadow: 0 0 0 0 rgba(44,121,85,0); }
+            50% { border-color: rgba(44,121,85,0.5); box-shadow: 0 0 0 6px rgba(44,121,85,0.05); }
           }
           @keyframes slideInCard {
             from { opacity: 0; transform: translateY(-8px); }
@@ -133,10 +128,10 @@ function QrOrdersPanel() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{
               width: 36, height: 36, borderRadius: 10,
-              background: 'rgba(255,165,0,0.15)',
-              border: '1px solid rgba(255,165,0,0.3)',
+              background: 'var(--accent-bg)',
+              border: '1px solid var(--border)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18
-            }}>📱</div>
+            }}></div>
             <div>
               <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--charcoal)', margin: 0 }}>
                 Incoming QR Orders
@@ -147,7 +142,7 @@ function QrOrdersPanel() {
             </div>
           </div>
           <span style={{
-            background: '#ff8c00', color: '#fff', borderRadius: 20,
+            background: 'var(--accent-dark)', color: '#fff', borderRadius: 20,
             padding: '4px 12px', fontSize: 13, fontWeight: 800
           }}>
             {pendingOrders.length} Pending
@@ -187,11 +182,11 @@ function QrOrdersPanel() {
                       )}
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--charcoal-soft)' }}>
-                      {itemCount} item{itemCount !== 1 ? 's' : ''} · ${total.toFixed(2)} · {waitLabel}
+                      {itemCount} item{itemCount !== 1 ? 's' : ''} · {formatCurrency(total,currency)} · {waitLabel}
                     </div>
                   </div>
                   <span style={{
-                    fontSize: 10, color: 'rgba(255,165,0,0.8)', fontWeight: 600,
+                    fontSize: 10, color: 'var(--accent)', fontWeight: 600,
                     textTransform: 'uppercase', letterSpacing: '0.05em'
                   }}>
                     QR Order
@@ -246,7 +241,7 @@ function QrOrdersPanel() {
                       fontWeight: 700, fontSize: 13, cursor: isProcessing ? 'not-allowed' : 'pointer',
                     }}
                   >
-                    {isProcessing ? 'Processing…' : '✓ Confirm Order'}
+                    {isProcessing ? 'Processing…' : 'Confirm order'}
                   </button>
                 </div>
               </div>
@@ -260,198 +255,46 @@ function QrOrdersPanel() {
 
 /* ─── Main Dashboard Page ────────────────────────────── */
 export default function StaffDashboardPage() {
-  const [session, setSession] = useState<{ name: string; id: string } | null>(null)
-  const [todayOrders, setTodayOrders] = useState<any[]>([])
-  const [activeOrders, setActiveOrders] = useState<ActiveOrder[]>([])
-  const [activeShift, setActiveShift] = useState<{ id: string; clock_in: string } | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [clockAction, setClockAction] = useState('')
-  const [mounted, setMounted] = useState(false)
-  const supabase = createClient()
-
-  const today = new Date()
-
-  useEffect(() => {
-    setMounted(true)
-    loadDashboard()
-  }, [])
-
-  const loadDashboard = async () => {
-    try {
-      // Get session info
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data: dbUser } = await supabase
-          .from('users')
-          .select('id, name')
-          .eq('auth_user_id', user.id)
-          .single()
-        if (dbUser) setSession(dbUser)
-      } else {
-        // Staff JWT — get from API
-        const res = await fetch('/api/staff/me').catch(() => null)
-        if (res?.ok) {
-          const json = await res.json()
-          setSession(json)
-        }
-      }
-
-      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString()
-
-      // Use admin client to query — need to use fetch for auth-aware queries
-      const [ordersRes, activeRes, shiftRes] = await Promise.all([
-        fetch('/api/orders?status=paid&limit=200'),
-        fetch('/api/orders?status=active&limit=50'),
-        fetch('/api/shifts'),
+  const [session,setSession]=useState<{name:string;id:string}|null>(null)
+  const [summary,setSummary]=useState({todayRevenue:0,todayOrderCount:0})
+  const [orders,setOrders]=useState<ActiveOrder[]>([])
+  const [shift,setShift]=useState<{id:string;clock_in:string}|null>(null)
+  const [currency,setCurrency]=useState<CurrencyConfig>(DEFAULT_CURRENCY)
+  const [loading,setLoading]=useState(true)
+  const [clockAction,setClockAction]=useState('')
+  const [error,setError]=useState('')
+  const [ready,setReady]=useState(false)
+  const loadDashboard=useCallback(async()=>{
+    try{
+      const now=new Date();const from=new Date(now.getFullYear(),now.getMonth(),now.getDate()).toISOString()
+      const [profile,totals,active,shifts,settings]=await Promise.all([
+        apiGet<{data:{id:string;name:string}}>('/api/staff/me'),
+        apiGet<{todayRevenue:number;todayOrderCount:number}>('/api/staff/summary?from='+encodeURIComponent(from)),
+        apiGet<{data:ActiveOrder[]}>('/api/orders?status=active&limit=50'),
+        apiGet<{activeShift:{id:string;clock_in:string}|null}>('/api/shifts'),readSettings()
       ])
-
-      const ordersJson = ordersRes.ok ? await ordersRes.json() : { data: [] }
-      const activeJson = activeRes.ok ? await activeRes.json() : { data: [] }
-      const shiftJson = shiftRes.ok ? await shiftRes.json() : { activeShift: null }
-
-      // Filter to today only
-      const todayPaid = (ordersJson.data || []).filter((o: any) => o.created_at >= startOfDay)
-      setTodayOrders(todayPaid)
-      setActiveOrders(activeJson.data || [])
-      setActiveShift(shiftJson.activeShift || null)
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const todayRevenue = todayOrders.reduce((s, o) => s + Number(o.total), 0)
-
-  const handleClock = async (action: 'in' | 'out') => {
-    setClockAction(action)
-    try {
-      if (action === 'in') {
-        await fetch('/api/shifts', { method: 'POST' })
-      } else if (activeShift) {
-        await fetch(`/api/shifts/${activeShift.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clock_out: new Date().toISOString() }) })
-      }
+      setSession(profile.data);setSummary(totals);setOrders(active.data);setShift(shifts.activeShift)
+      const c=settings.find(s=>s.key==='currency');if(c?.key==='currency')setCurrency(c.value)
+      setError('');setReady(true)
+    }catch(e){setError(e instanceof Error?e.message:'Unable to load your workspace.')}
+    finally{setLoading(false)}
+  },[])
+  useEffect(()=>{void Promise.resolve().then(loadDashboard)},[loadDashboard])
+  async function handleClock(action:'in'|'out'){
+    setClockAction(action);setError('')
+    try{
+      const response=action==='in'?await fetch('/api/shifts',{method:'POST'}):await fetch(`/api/shifts/${shift?.id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({clock_out:new Date().toISOString()})})
+      if(!response.ok){const data=await response.json();throw new Error(data.error||'Unable to update your shift.')}
       await loadDashboard()
-    } catch {}
-    setClockAction('')
+    }catch(e){setError(e instanceof Error?e.message:'Unable to update your shift.')}finally{setClockAction('')}
   }
-
-  const greeting = today.getHours() < 12 ? 'Morning' : today.getHours() < 17 ? 'Afternoon' : 'Evening'
-  const firstName = session?.name?.split(' ')[0] || 'there'
-
-  return (
-    <div className="animate-in">
-      {/* Greeting */}
-      <div className="page-header">
-        <h1>Good {greeting}, {firstName}</h1>
-        <p>{mounted ? today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : ''}</p>
-      </div>
-
-      {/* ── QR Incoming Orders Panel (real-time) ── */}
-      <QrOrdersPanel />
-
-      {/* KPI Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: '16px', marginBottom: '28px' }}>
-        <div className="kpi-card" id="kpi-my-revenue">
-          <div style={{ width:36, height:36, borderRadius:9, background:'var(--accent-bg)', border:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-dark)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-          </div>
-          <div>
-            <div style={{ fontSize: '26px', fontWeight: 800, color:'var(--charcoal)', letterSpacing:'-0.03em' }}>${todayRevenue.toFixed(2)}</div>
-            <div style={{ fontSize: '13px', color: 'var(--charcoal-soft)' }}>My Sales Today</div>
-          </div>
-        </div>
-        <div className="kpi-card" id="kpi-my-orders">
-          <div style={{ width:36, height:36, borderRadius:9, background:'var(--info-bg)', border:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--info)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
-          </div>
-          <div>
-            <div style={{ fontSize: '26px', fontWeight: 800, color:'var(--charcoal)', letterSpacing:'-0.03em' }}>{todayOrders.length}</div>
-            <div style={{ fontSize: '13px', color: 'var(--charcoal-soft)' }}>Orders Completed</div>
-          </div>
-        </div>
-        <div className="kpi-card" id="kpi-active">
-          <div style={{ width:36, height:36, borderRadius:9, background:'var(--success-bg)', border:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-          </div>
-          <div>
-            <div style={{ fontSize: '26px', fontWeight: 800, color:'var(--charcoal)', letterSpacing:'-0.03em' }}>{activeOrders.length}</div>
-            <div style={{ fontSize: '13px', color: 'var(--charcoal-soft)' }}>Active Orders</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Clock In/Out + Quick Actions */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '28px' }}>
-        <div className="surface-card" style={{ padding: '24px' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '16px', color:'var(--charcoal)' }}>Shift Status</h3>
-          {activeShift ? (
-            <div>
-              <div className="badge badge-green" style={{ marginBottom: '12px' }}>● Clocked In</div>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                Since {mounted ? new Date(activeShift.clock_in).toLocaleTimeString() : ''}
-              </p>
-              <button
-                id="clock-out-btn"
-                className="btn btn-secondary"
-                disabled={clockAction !== ''}
-                onClick={() => handleClock('out')}
-              >
-                {clockAction === 'out' ? 'Clocking out…' : '■ Clock Out'}
-              </button>
-            </div>
-          ) : (
-            <div>
-              <div className="badge badge-gray" style={{ marginBottom: '12px' }}>○ Not Clocked In</div>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                Clock in to start tracking your shift
-              </p>
-              <button
-                id="clock-in-btn"
-                className="btn btn-primary"
-                disabled={clockAction !== ''}
-                onClick={() => handleClock('in')}
-              >
-                {clockAction === 'in' ? 'Clocking in…' : '▶ Clock In'}
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="surface-card" style={{ padding: '24px' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '16px', color:'var(--charcoal)' }}>Quick Actions</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <Link id="qa-new-order" href="/staff/orders/new" className="btn btn-primary" style={{ textDecoration: 'none', width: '100%' }}>
-              ＋ Take New Order
-            </Link>
-            <Link id="qa-my-orders" href="/staff/orders" className="btn btn-secondary" style={{ textDecoration: 'none', width: '100%' }}>
-              🗒 View My Orders
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Active Orders */}
-      {activeOrders.length > 0 && (
-        <div className="surface-card" style={{ padding: '24px' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '16px', color:'var(--charcoal)' }}>My Active Orders</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: '12px' }}>
-            {activeOrders.map((o: any) => (
-              <Link key={o.id} href={`/staff/orders/${o.id}`} style={{ textDecoration: 'none' }}>
-                <div className="glass-card" style={{ padding: '16px', cursor: 'pointer' }}>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--charcoal)', marginBottom: '4px' }}>
-                    {o.order_type === 'dine_in' ? `Table ${o.table?.table_number}` : o.order_type.replace('_',' ')}
-                  </div>
-                  <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--accent-dark)' }}>${Number(o.total).toFixed(2)}</div>
-                  <span className={`badge ${o.status === 'billed' ? 'badge-blue' : 'badge-orange'}`} style={{ marginTop: '8px' }}>
-                    {o.status}
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
+  if(loading||!ready)return <WorkspaceLoading error={error} onRetry={()=>{setError('');setLoading(true);void loadDashboard()}}/>
+  const today=new Date();const greeting=today.getHours()<12?'morning':today.getHours()<17?'afternoon':'evening'
+  const fmt=(n:number)=>formatCurrency(n,currency)
+  return <div className="animate-in"><div className="workspace-title"><div><span className="eyebrow">Your service workspace</span><h1>Good {greeting}, {session?.name.split(' ')[0]}.</h1><p>A fresh service. A chance to make someone’s day.</p></div><div className="workspace-title-actions"><span className="date-pill"><CalendarDays size={14}/>{today.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</span><Link href="/staff/orders/new" className="btn btn-primary"><Plus size={15}/>Take an order</Link></div></div>
+  {error&&<div className="alert" role="alert">{error}</div>}<QrOrdersPanel currency={currency}/>
+  <div className="staff-metrics">{[{id:'kpi-my-revenue',label:'Your sales today',value:fmt(summary.todayRevenue),foot:'Completed payments',Icon:DollarSign},{id:'kpi-my-orders',label:'Orders completed',value:summary.todayOrderCount,foot:'Your service today',Icon:ClipboardList},{id:'kpi-active',label:'Active orders',value:orders.length,foot:'Currently in your care',Icon:Flame}].map(m=><div className="metric-card" key={m.id} id={m.id}><div className="metric-top">{m.label}<span className="metric-icon"><m.Icon size={17}/></span></div><div className="metric-value num">{m.value}</div><div className="metric-foot">{m.foot}</div></div>)}</div>
+  <div className="staff-dashboard-columns"><section className="panel"><div className="panel-heading"><div><h2>Your shift</h2><p>A little structure for a smoother day</p></div><Clock3 size={18} className="muted"/></div><div style={{padding:'8px 22px 22px'}}><span className={`badge ${shift?'badge-green':'badge-gray'}`}>{shift?'Clocked in':'Off the clock'}</span><p style={{fontSize:12,color:'var(--charcoal-soft)',margin:'15px 0 20px'}}>{shift?`Your shift started at ${new Date(shift.clock_in).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}.`:'Ready for service? Clock in to begin your shift.'}</p><button id={shift?'clock-out-btn':'clock-in-btn'} className={`btn ${shift?'btn-secondary':'btn-primary'}`} disabled={!!clockAction} onClick={()=>handleClock(shift?'out':'in')}>{shift?<LogOut size={14}/>:<LogIn size={14}/>} {clockAction?'Updating shift…':shift?'End your shift':'Start your shift'}</button></div></section>
+  <section className="panel"><div className="panel-heading"><div><h2>A good place to start</h2><p>Your most useful shortcuts</p></div><ArrowUpRight size={17} className="muted"/></div><div className="staff-quick-actions"><Link id="qa-new-order" href="/staff/orders/new"><span><Plus size={17}/></span><div><strong>Take a new order</strong><small>Something delicious, coming right up</small></div><ArrowRight size={14}/></Link><Link id="qa-my-orders" href="/staff/orders"><span><ClipboardList size={17}/></span><div><strong>View your orders</strong><small>Keep track of every table and ticket</small></div><ArrowRight size={14}/></Link><Link href="/staff/qr-orders"><span><QrCode size={17}/></span><div><strong>Incoming guest orders</strong><small>Confirm orders placed from the table</small></div><ArrowRight size={14}/></Link></div></section></div>
+  <section className="panel"><div className="panel-heading"><div><h2>In your care</h2><p>Your active orders</p></div><Link href="/staff/orders">All orders<ArrowUpRight size={13}/></Link></div>{orders.length?<div className="staff-order-grid">{orders.map(o=><Link key={o.id} href={`/staff/orders/${o.id}`} className="staff-order-card"><div className="row space-between"><span className="order-number"><ClipboardList size={17}/></span><span className={`badge ${o.status==='billed'?'badge-blue':'badge-green'}`}>{o.status}</span></div><h3>{o.order_type==='dine_in'?`Table ${o.table?.table_number||'—'}`:o.order_type.replace('_',' ')}</h3><div className="row space-between"><strong className="num">{fmt(Number(o.total))}</strong><ArrowUpRight size={15}/></div></Link>)}</div>:<EmptyState title="Ready for your next guest" description="Your active orders will appear here as you start service." action={<Link className="btn btn-secondary btn-sm" href="/staff/orders/new">Take your first order<ArrowRight size={13}/></Link>}/>}</section></div>
 }

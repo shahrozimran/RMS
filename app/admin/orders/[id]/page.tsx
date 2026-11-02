@@ -121,29 +121,9 @@ export default function AdminOrderDetailPage() {
     setError('')
 
     try {
-      const { data: userData } = await supabase.auth.getUser()
-      const adminUserId = userData.user?.id
-
-      if (!adminUserId) {
-        // Fallback or error if auth context is missing
-        throw new Error('Unauthenticated user')
-      }
-
-      // Resolve the actual UUID of user table that corresponds to auth.users.id
-      const { data: dbUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_user_id', adminUserId)
-        .single()
-
-      if (!dbUser) throw new Error('Admin profile user mapping not found')
-
-      const { error: rpcError } = await supabase.rpc('void_order', {
-        p_order_id: id,
-        p_reason: voidReason,
-        p_approved_by: dbUser.id
-      })
-      if (rpcError) throw rpcError
+      const response = await fetch(`/api/orders/${id}/void`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: voidReason }) })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error)
 
       setShowVoidModal(false)
       fetchOrderDetail()

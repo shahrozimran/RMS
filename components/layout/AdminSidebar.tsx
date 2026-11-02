@@ -3,173 +3,45 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { Activity, ArrowUpRight, BarChart3, ChevronDown, LayoutDashboard, LogOut, Menu, Settings2, ShieldCheck, Store, TableProperties, Users, UtensilsCrossed, X, ClipboardList, Monitor } from 'lucide-react'
+import Brand from '@/components/ui/Brand'
 
-// ── Inline SVG icons (no external dep) ──────────────────────
-const Icons = {
-  Dashboard: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" />
-      <rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" />
-    </svg>
-  ),
-  Orders: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
-      <rect x="9" y="3" width="6" height="4" rx="1" /><path d="M9 12h6M9 16h4" />
-    </svg>
-  ),
-  Menu: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2a4 4 0 014 4c0 1.5-.5 2.8-1.4 3.8L16 21H8l1.4-11.2A5.97 5.97 0 018 6a4 4 0 014-4z" />
-      <path d="M6 21h12" />
-    </svg>
-  ),
-  Staff: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="9" cy="7" r="4" /><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" />
-      <path d="M16 3.13a4 4 0 010 7.75M21 21v-2a4 4 0 00-3-3.85" />
-    </svg>
-  ),
-  Tables: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="7" width="18" height="3" rx="1" /><path d="M6 10v7M18 10v7M3 17h18" />
-    </svg>
-  ),
-
-  Reports: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 20V10M12 20V4M6 20v-6" />
-    </svg>
-  ),
-  Activity: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-    </svg>
-  ),
-  Settings: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
-    </svg>
-  ),
-  Logout: () => (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
-    </svg>
-  ),
-}
-
-const navItems = [
-  { href: '/admin/dashboard', label: 'Dashboard',  Icon: Icons.Dashboard },
-  { href: '/admin/orders',    label: 'Orders',      Icon: Icons.Orders },
-  { href: '/admin/menu',      label: 'Menu',        Icon: Icons.Menu },
-  { href: '/admin/staff',     label: 'Staff',       Icon: Icons.Staff },
-  { href: '/admin/tables',    label: 'Tables',      Icon: Icons.Tables },
-  { href: '/admin/reports',   label: 'Reports',     Icon: Icons.Reports },
-  { href: '/admin/activity',  label: 'Activity',    Icon: Icons.Activity },
-  { href: '/admin/settings',  label: 'Settings',    Icon: Icons.Settings },
+export const ADMIN_NAV = [
+  { href: '/admin/dashboard', label: 'Overview', key: 'dashboard', Icon: LayoutDashboard },
+  { href: '/admin/pos', label: 'Point of sale', key: 'pos', Icon: Monitor },
+  { href: '/admin/orders', label: 'Orders', key: 'orders', Icon: ClipboardList, Monitor },
+  { href: '/admin/menu', label: 'Menu management', key: 'menu', Icon: UtensilsCrossed },
+  { href: '/admin/tables', label: 'Tables & floor', key: 'tables', Icon: TableProperties },
+  { href: '/admin/staff', label: 'Team members', key: 'team', Icon: Users },
+  { href: '/admin/reports', label: 'Sales reports', key: 'reports', Icon: BarChart3 },
+  { href: '/admin/activity', label: 'Activity log', key: 'activity', Icon: Activity },
+  { href: '/admin/settings', label: 'Settings', key: 'settings', Icon: Settings2 },
 ]
-
-interface AdminSidebarProps {
-  user: { name: string; role: string }
-}
-
-export default function AdminSidebar({ user }: AdminSidebarProps) {
+export default function AdminSidebar({ user, previewView }: { user: { name: string; role: string }; previewView?: string }) {
   const pathname = usePathname()
   const router = useRouter()
+  const [open, setOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
-
-  const handleLogout = async () => {
+  const [error, setError] = useState('')
+  const logout = async () => {
+    if (previewView) { router.push('/login'); return }
     setLoggingOut(true)
-    await fetch('/api/auth/logout', { method: 'POST' })
-    router.push('/login')
-    router.refresh()
+    try {
+      const response = await fetch('/api/auth/logout', { method: 'POST' })
+      if (!response.ok) throw new Error('Unable to sign out. Please try again.')
+      router.push('/login'); router.refresh()
+    } catch (error) { setError(error instanceof Error ? error.message : 'Sign out failed'); setLoggingOut(false) }
   }
-
-  const initials = user.name
-    .split(' ')
-    .map(n => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
-
-  return (
-    <aside className="sidebar" aria-label="Admin navigation">
-      {/* Brand */}
-      <div style={{ padding: '20px 16px 16px', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
-          {/* Logo mark */}
-          <div style={{
-            width: 36, height: 36, borderRadius: 9, flexShrink: 0,
-            background: 'var(--charcoal)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2a4 4 0 014 4c0 1.5-.5 2.8-1.4 3.8L16 21H8l1.4-11.2A5.97 5.97 0 018 6a4 4 0 014-4z" />
-              <path d="M6 21h12" />
-            </svg>
-          </div>
-          <div style={{ overflow: 'hidden' }}>
-            <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--charcoal)', whiteSpace: 'nowrap', letterSpacing: '-0.02em' }}>RMS Admin</div>
-            <div style={{ fontSize: '11px', color: 'var(--charcoal-soft)', whiteSpace: 'nowrap' }}>Management Portal</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Nav */}
-      <nav style={{ flex: 1, padding: '10px 0', overflowY: 'auto' }}>
-        {navItems.map(({ href, label, Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={`sidebar-link ${pathname.startsWith(href) ? 'active' : ''}`}
-            title={label}
-          >
-            <span style={{ flexShrink: 0, display: 'flex' }}><Icon /></span>
-            <span>{label}</span>
-          </Link>
-        ))}
-      </nav>
-
-      {/* User + Logout */}
-      <div style={{ borderTop: '1px solid var(--border)', padding: '10px 8px' }}>
-        {/* User pill */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '10px',
-          padding: '8px 14px', marginBottom: '2px', overflow: 'hidden'
-        }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-            background: 'var(--accent-bg)',
-            border: '1.5px solid var(--border-strong)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '12px', fontWeight: 700, color: 'var(--accent-dark)'
-          }}>
-            {initials}
-          </div>
-          <div style={{ overflow: 'hidden' }}>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--charcoal)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name}</div>
-            <div style={{ fontSize: '11px', color: 'var(--charcoal-soft)' }}>{user.role}</div>
-          </div>
-        </div>
-
-        {/* Logout */}
-        <button
-          id="admin-logout-btn"
-          onClick={handleLogout}
-          disabled={loggingOut}
-          className="sidebar-link"
-          style={{
-            width: '100%', border: 'none', cursor: 'pointer',
-            color: 'var(--error)', background: 'transparent',
-            textAlign: 'left',
-          }}
-          title="Log out"
-        >
-          <span style={{ flexShrink: 0, display: 'flex' }}><Icons.Logout /></span>
-          <span>{loggingOut ? 'Logging out…' : 'Log Out'}</span>
-        </button>
-      </div>
+  return <>
+    <button className="sidebar-mobile-toggle no-print" aria-label={open ? 'Close navigation' : 'Open navigation'} aria-expanded={open} onClick={() => setOpen(!open)}>{open ? <X size={18} /> : <Menu size={18} />}</button>
+    <button className={`sidebar-scrim ${open ? 'is-open' : ''}`} aria-label="Close navigation" tabIndex={open ? 0 : -1} onClick={() => setOpen(false)} />
+    <aside className={`app-sidebar no-print ${open ? 'is-open' : ''}`} aria-label="Admin navigation">
+      <Link href={previewView ? '/preview' : '/admin/dashboard'} className="sidebar-brand"><Brand light /></Link>
+      <div className="sidebar-location"><Store size={17} /><span>Main restaurant<small>Management workspace</small></span><ChevronDown size={13} /></div>
+      <nav aria-label="Restaurant management"><div className="nav-section-label">Restaurant</div>{ADMIN_NAV.map(({ href,label,key,Icon },index) => <div key={href}>{index === 5 && <div className="nav-section-label" style={{ marginTop:25 }}>Management</div>}<Link href={previewView ? `/preview?view=${key}` : href} className={`app-nav-link ${(previewView ? previewView === key : pathname.startsWith(href)) ? 'active' : ''}`} title={label} aria-current={(previewView ? previewView === key : pathname.startsWith(href)) ? 'page' : undefined} onClick={() => setOpen(false)}><Icon size={17} strokeWidth={1.7} /><span className="nav-label">{label}</span>{index === 0 && <ArrowUpRight size={12} />}</Link></div>)}</nav>
+      <div className="sidebar-service-note"><strong className="row"><ShieldCheck size={15} /> Every detail, in order.</strong><p>A calmer workspace for a better service.</p>{previewView && <Link href="/preview?view=pos" className="row" style={{ fontSize:10,marginTop:12,color:'#b8d8c1' }}>Try the point of sale <ArrowUpRight size={12} /></Link>}</div>
+      {error && <p role="alert" style={{ fontSize:10,color:'#e9aaa4',padding:8 }}>{error}</p>}
+      <div className="sidebar-user"><span className="user-avatar">{user.name.split(' ').map(n => n[0]).slice(0,2).join('')}</span><div className="user-info"><strong>{user.name}</strong><small>{user.role}</small></div><button className="icon-button" aria-label="Sign out" title="Sign out" id="admin-logout-btn" onClick={logout} disabled={loggingOut}><LogOut size={16} /></button></div>
     </aside>
-  )
+  </>
 }

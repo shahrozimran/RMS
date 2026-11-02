@@ -1,16 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
 /** Server-side Supabase client (uses service role key — never expose to browser) */
 export async function createAdminClient() {
-  return createServerClient(
+  return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {
-      cookies: {
-        getAll: () => [],
-        setAll: () => {},
-      },
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     }
   )
 }
