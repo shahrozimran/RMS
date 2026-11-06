@@ -10,7 +10,7 @@ Baseline source: `fd1571a`. Measurements use the same computer, dependencies and
 - **Unnecessary browser work:** PDF, canvas, CSV and QR-generation libraries load when requested. Preview features load separately, including their chart. Product grids are memoized, and deferred menu filtering keeps the search input responsive while larger menus render. Currency formatter instances are reused in a bounded cache; amounts and business records are never cached.
 - **Oversized images:** Public Supabase menu images use Next's resizing/compression with card-appropriate sizes. Other sources retain their existing rendering path. Image optimization does not broaden the configured host allowlist.
 - **Badge payloads:** Staff navigation requests an authenticated count instead of customer names and complete order items. The actual queue retains its full payload. Existing completion-based polling still avoids overlap and hidden-tab polling.
-- **Blocking external fonts:** Next serves the existing fonts with the application, preloads them and uses `display: swap`, removing the browser's Google stylesheet/font round trips. A root loading boundary also provides feedback during initial layout authentication.
+- **Blocking external fonts:** Next serves the existing fonts with the application, preloads them and uses `display: swap`, removing the browser's Google stylesheet/font round trips. Existing protected-route loading boundaries continue to provide navigation feedback.
 
 ## Build measurements
 
@@ -38,6 +38,8 @@ Signed-in Chrome POS reload-to-visible-heading samples on the old production dep
 npm test
 npm run build
 npm run perf:measure
+# With npm start running on port 3001 (or pass your deployed origin):
+npm run perf:smoke
 # Optional read-only DB probes; reads local secrets without printing them:
 node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/measure-performance.mjs --database
 ```
