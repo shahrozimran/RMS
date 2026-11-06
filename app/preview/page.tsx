@@ -6,7 +6,7 @@ export const metadata:Metadata={title:'Design Preview',robots:{index:false,follo
 export default async function PreviewPage({searchParams}:{searchParams:Promise<{view?:string}>}){
  if(process.env.NODE_ENV!=='development')notFound()
  const {view}=await searchParams
- const allowed=['dashboard','menu','pos','customer','tables','team','orders','reports','activity','settings']
+ const allowed=['dashboard','menu','pos','customer','tables','team','orders','reports','activity','settings','intelligence']
  const selected=view&&allowed.includes(view)?view:'dashboard'
  return <PreviewWorkspace key={selected} view={selected}/>
 }

@@ -7,7 +7,14 @@ export async function proxy(request: NextRequest) {
     // Cookie-authenticated mutations must originate from this application.
     if (!['GET','HEAD','OPTIONS'].includes(request.method)) {
       const origin = request.headers.get('origin')
-      const expectedOrigin = process.env.APP_ORIGIN || request.nextUrl.origin
+      let expectedOrigin = process.env.APP_ORIGIN || request.nextUrl.origin
+      // Next dev normalizes nextUrl to localhost even when the browser uses
+      // 127.0.0.1. Honor only loopback Host values for this local-development case.
+      const localHost = request.headers.get('host')
+      if (!process.env.APP_ORIGIN && process.env.NODE_ENV === 'development' && localHost
+          && /^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(localHost)) {
+        expectedOrigin = `${request.nextUrl.protocol}//${localHost}`
+      }
       if (request.headers.get('sec-fetch-site') === 'cross-site' || (origin && origin !== expectedOrigin)) {
         return NextResponse.json({ error: 'Invalid request origin' }, { status: 403 })
       }

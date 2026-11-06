@@ -1,0 +1,16 @@
+@prefix rms: <https://rms.example/ontology#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+rms:RecipeLineShape a sh:NodeShape ; sh:targetClass rms:RecipeLine ;
+ sh:property [ sh:path rms:requiresIngredient ; sh:class rms:Ingredient ; sh:minCount 1 ; sh:maxCount 1 ] ;
+ sh:property [ sh:path rms:quantity ; sh:datatype xsd:decimal ; sh:minExclusive 0 ; sh:minCount 1 ; sh:maxCount 1 ] ;
+ sh:property [ sh:path rms:canonicalUnit ; sh:datatype xsd:string ; sh:minLength 1 ; sh:minCount 1 ; sh:maxCount 1 ] .
+rms:OrderLineShape a sh:NodeShape ; sh:targetClass rms:OrderLine ;
+ sh:property [ sh:path rms:orderedItem ; sh:class rms:MenuItem ; sh:minCount 1 ; sh:maxCount 1 ] ;
+ sh:property [ sh:path rms:quantity ; sh:datatype xsd:decimal ; sh:minExclusive 0 ; sh:minCount 1 ; sh:maxCount 1 ] .
+rms:RecommendationShape a sh:NodeShape ; sh:targetClass rms:Recommendation ;
+ sh:property [ sh:path rms:supportedBy ; sh:class rms:Evidence ; sh:minCount 1 ] .
+rms:EvidenceShape a sh:NodeShape ; sh:targetClass rms:Evidence ;
+ sh:property [ sh:path rms:observedAt ; sh:datatype xsd:dateTime ; sh:minCount 1 ; sh:maxCount 1 ] ;
+ sh:property [ sh:path rms:sourceRecord ; sh:datatype xsd:string ; sh:minLength 1 ; sh:minCount 1 ; sh:maxCount 1 ] .

@@ -2,6 +2,7 @@ import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile, readdir } from 'node:fs/promises'
 import { PGlite } from '@electric-sql/pglite'
+import { evaluateOrder } from '../lib/agents/engine.ts'
 
 let db, admin, waiter, manager, product, modifier, ingredient
 const query = async (sql, args = []) => (await db.query(sql, args)).rows
@@ -202,4 +203,133 @@ test('public QR projection returns restaurant name and excludes table capability
   const menu=await rpc('get_qr_menu',[token],['uuid'])
   assert.equal(menu.settings.restaurant_name,'My Restaurant')
   assert.equal(Object.hasOwn(menu.table,'qr_token'),false)
+})
+
+
+// The new agent subsystem is tested only in this disposable database.
+async function agentOrder(stock=1) {
+  const p=await scalar("insert into public.products(name,base_price,tax_rate) values('Agent test burger',10,5) returning id")
+  const ingredient=await scalar("insert into public.ingredients(name,unit,quantity_available,reorder_threshold) values('Agent test buns','pieces',$1,2) returning id",[stock])
+  await query('insert into public.product_ingredients(product_id,ingredient_id,quantity_used) values($1,$2,1)',[p,ingredient])
+  const order=await create(waiter,{order_type:'takeaway',items:[{product_id:p,quantity:2,unit_price:10,tax_rate:5}]})
+  return {order,ingredient,product:p}
+}
+async function claimFor(orderId) {
+  await query("update public.agent_jobs set available_at='2099-01-01' where status='pending' and order_id<>$1",[orderId])
+  await query("update public.agent_jobs set available_at=now()-interval '1 second' where order_id=$1",[orderId])
+  const job=await rpc('claim_agent_job',[])
+  assert.equal(job?.context.order.id,orderId)
+  return job
+}
+const finish=job=>rpc('complete_agent_job',[job.id,job.lease_token,job.generation,job.context_hash,JSON.stringify(evaluateOrder(job))],['uuid','uuid','integer','text','jsonb'])
+
+test('agent subsystem starts paused and browser roles cannot claim, complete or configure work',async()=>{
+  assert.equal(await scalar("select value from public.system_settings where key='agent_review_enabled'"),false)
+  const fixture=await agentOrder()
+  assert.equal(await scalar('select count(*)::int from public.agent_jobs where order_id=$1',[fixture.order.id]),0)
+  assert.equal(await rpc('claim_agent_job',[]),null)
+  await assert.rejects(rpc('set_agent_review_enabled',[waiter,true],['uuid','boolean']),/Admin required|Permission denied/)
+  for(const role of ['anon','authenticated']){
+    await db.exec('set role '+role)
+    try{
+      await assert.rejects(rpc('claim_agent_job',[]),/permission denied/)
+      await assert.rejects(rpc('set_agent_review_enabled',[admin,true],['uuid','boolean']),/permission denied/)
+      await assert.rejects(query("insert into public.agent_jobs(order_id) values($1)",[fixture.order.id]),/permission denied/)
+      if(role==='anon')await assert.rejects(query('select * from public.agent_runs'),/permission denied/)
+    }finally{await db.exec('reset role')}
+  }
+  await rpc('set_agent_review_enabled',[admin,true],['uuid','boolean'])
+})
+
+test('order/item transaction creates one coalesced job and its snapshot excludes customer PII',async()=>{
+  const {order}=await agentOrder()
+  assert.equal(await scalar('select count(*)::int from public.agent_jobs where order_id=$1',[order.id]),1)
+  await query("update public.orders set customer_name='Sensitive name',customer_phone='+15551234567',notes='private request' where id=$1",[order.id])
+  const job=await claimFor(order.id)
+  assert.equal(JSON.stringify(job).includes('Sensitive name'),false)
+  assert.equal(JSON.stringify(job).includes('+15551234567'),false)
+  assert.equal(JSON.stringify(job).includes('private request'),false)
+  assert.equal(job.context.ingredients[0].required,2)
+  assert.equal(job.context.ingredients[0].open_demand,2)
+  assert.ok(evaluateOrder(job).findings.some(f=>f.kind==='stock_pressure'))
+  assert.equal(await finish(job),true)
+  assert.equal(await finish(job),false)
+  assert.equal(await scalar('select count(*)::int from public.agent_runs where job_id=$1',[job.id]),1)
+  assert.equal(await scalar('select status from public.orders where id=$1',[order.id]),'active')
+  assert.equal(Number(await scalar('select quantity_available from public.ingredients where id=$1',[job.context.ingredients[0].id])),1)
+})
+
+test('leased jobs cannot complete after a relevant stock change',async()=>{
+  const {order,ingredient}=await agentOrder()
+  const old=await claimFor(order.id)
+  await query('update public.ingredients set quantity_available=3 where id=$1',[ingredient])
+  assert.equal(await finish(old),false)
+  const fresh=await claimFor(order.id)
+  assert.ok(fresh.generation>old.generation)
+  assert.notEqual(fresh.context_hash,old.context_hash)
+  assert.equal(await finish(fresh),true)
+})
+
+test('expired leases are reclaimed and prior lease tokens cannot complete the replacement',async()=>{
+  const {order}=await agentOrder()
+  const first=await claimFor(order.id)
+  await query("update public.agent_jobs set locked_until=now()-interval '1 second' where id=$1",[first.id])
+  const replacement=await claimFor(order.id)
+  assert.notEqual(first.lease_token,replacement.lease_token)
+  assert.equal(await finish(first),false)
+  assert.equal(await finish(replacement),true)
+})
+
+test('retry exhaustion becomes a visible dead job; administrator can explicitly requeue',async()=>{
+  const {order}=await agentOrder()
+  for(let i=0;i<5;i++){
+    const job=await claimFor(order.id)
+    assert.equal(await rpc('fail_agent_job',[job.id,job.lease_token,job.generation,'WORKER_FAILURE'],['uuid','uuid','integer','text']),true)
+  }
+  assert.equal(await scalar('select status from public.agent_jobs where order_id=$1',[order.id]),'dead')
+  await rpc('queue_agent_reviews',[admin,order.id],['uuid','uuid'])
+  assert.equal(await scalar('select attempts from public.agent_jobs where order_id=$1',[order.id]),0)
+})
+
+test('administrator review is idempotent, audited, and never changes stock or financial state',async()=>{
+  const {order,ingredient}=await agentOrder()
+  const job=await claimFor(order.id);await finish(job)
+  const finding=await scalar('select id from public.agent_recommendations where order_id=$1 and status=\'open\' limit 1',[order.id])
+  await assert.rejects(rpc('review_agent_recommendation',[waiter,finding,'acknowledged',''],['uuid','uuid','text','text']),/Admin required|Permission denied/)
+  const result=await rpc('review_agent_recommendation',[admin,finding,'acknowledged','Checked with the kitchen'],['uuid','uuid','text','text'])
+  assert.equal(result.status,'acknowledged')
+  await assert.rejects(rpc('review_agent_recommendation',[admin,finding,'dismissed',''],['uuid','uuid','text','text']),/already reviewed/)
+  assert.equal(Number(await scalar('select quantity_available from public.ingredients where id=$1',[ingredient])),1)
+  assert.equal(await scalar('select status from public.orders where id=$1',[order.id]),'active')
+  assert.equal(await scalar('select count(*)::int from public.activity_logs where action=\'AGENT_RECOMMENDATION_REVIEWED\' and entity_id=$1',[finding]),1)
+})
+
+test('expired evidence becomes stale when a review is attempted',async()=>{
+  const {order}=await agentOrder()
+  const job=await claimFor(order.id);await finish(job)
+  const finding=await scalar('select id from public.agent_recommendations where order_id=$1 and status=\'open\' limit 1',[order.id])
+  await query("update public.agent_recommendations set expires_at=now()-interval '1 second' where id=$1",[finding])
+  const result=await rpc('review_agent_recommendation',[admin,finding,'acknowledged',''],['uuid','uuid','text','text'])
+  assert.equal(result.status,'stale')
+})
+
+test('pausing prevents claims and source hash validation still catches a change while paused',async()=>{
+  const {order,ingredient}=await agentOrder()
+  const job=await claimFor(order.id);await finish(job)
+  const finding=await scalar('select id from public.agent_recommendations where order_id=$1 and status=\'open\' limit 1',[order.id])
+  await rpc('set_agent_review_enabled',[admin,false],['uuid','boolean'])
+  assert.equal(await rpc('claim_agent_job',[]),null)
+  await query('update public.ingredients set quantity_available=10 where id=$1',[ingredient])
+  assert.equal((await rpc('review_agent_recommendation',[admin,finding,'acknowledged',''],['uuid','uuid','text','text'])).status,'stale')
+  await rpc('set_agent_review_enabled',[admin,true],['uuid','boolean'])
+})
+
+test('rolled-back business transactions cannot leave durable agent jobs behind',async()=>{
+  let id
+  await db.exec('BEGIN')
+  try{
+    id=(await agentOrder()).order.id
+    assert.equal(await scalar('select count(*)::int from public.agent_jobs where order_id=$1',[id]),1)
+  }finally{await db.exec('ROLLBACK')}
+  assert.equal(await scalar('select count(*)::int from public.agent_jobs where order_id=$1',[id]),0)
 })

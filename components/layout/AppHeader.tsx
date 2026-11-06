@@ -13,6 +13,7 @@ const destinations = [
   { name: 'Team', description: 'People and permissions', href: '/admin/staff' },
   { name: 'Tables', description: 'Floor plan and QR codes', href: '/admin/tables' },
   { name: 'Reports', description: 'Sales and performance', href: '/admin/reports' },
+  { name: 'Intelligence', description: 'Agent reviews and operational evidence', href: '/admin/intelligence' },
   { name: 'Activity', description: 'Your operational audit trail', href: '/admin/activity' },
   { name: 'Settings', description: 'Make the workspace yours', href: '/admin/settings' },
 ]

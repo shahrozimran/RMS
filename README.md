@@ -42,3 +42,8 @@ Run `npm run dev -- --hostname 127.0.0.1 --port 3000`, then open [the design pre
 The shared design covers admin and staff navigation, dashboards, menu management, POS, guest ordering, tables, team management, settings and common billing/form styles. The administrator POS is at `/admin/pos`.
 
 The preview is development-only, uses labelled sample data and shares the real UI components for the main screens. Preview interactions never call restaurant mutation APIs; the production route returns 404. Sign in to use real restaurant data. Apply the previously documented database migrations before exercising live financial workflows. See [UI details](docs/UI_REDESIGN.md).
+
+
+## Operations intelligence (first increment)
+
+The new `/admin/intelligence` workspace adds advisory Order, Inventory and Supervisor reviews with evidence and a durable background queue. See [installation, limitations and remaining agents](docs/AGENT_IMPLEMENTATION.md). Apply migration 014 before using live reviews, then run `npm run agents:worker` with Node.js 24 on a background host. Reviews start disabled. The development-only sample is `/preview?view=intelligence`. SQL tests and the worker require Node.js 24; the existing application runtime requirements are unchanged.

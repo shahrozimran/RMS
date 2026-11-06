@@ -1,0 +1,15 @@
+{
+  "version": "0.1.0",
+  "namespace": "https://rms.example/ontology#",
+  "status": "vocabulary-foundation; live RDF materialization not enabled",
+  "entities": {
+    "orders": "rms:Order", "order_items": "rms:OrderLine", "products": "rms:MenuItem",
+    "ingredients": "rms:Ingredient", "product_ingredients": "rms:RecipeLine",
+    "users": "rms:Employee", "tables": "rms:DiningTable", "agent_recommendations": "rms:Recommendation"
+  },
+  "quantity_contract": {
+    "source": "product_ingredients.quantity_used", "unit": "ingredients.unit",
+    "meaning": "Amount per base product in the ingredient canonical unit",
+    "limitations": ["No implicit unit conversion", "Variant recipes not modeled", "Modifier ingredient quantities not modeled"]
+  }
+}

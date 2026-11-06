@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { Activity, ArrowUpRight, BarChart3, ChevronDown, LayoutDashboard, LogOut, Menu, Settings2, ShieldCheck, Store, TableProperties, Users, UtensilsCrossed, X, ClipboardList, Monitor } from 'lucide-react'
+import { Activity, ArrowUpRight, BarChart3, Bot, ChevronDown, LayoutDashboard, LogOut, Menu, Settings2, ShieldCheck, Store, TableProperties, Users, UtensilsCrossed, X, ClipboardList, Monitor } from 'lucide-react'
 import Brand from '@/components/ui/Brand'
 
 export const ADMIN_NAV = [
@@ -14,6 +14,7 @@ export const ADMIN_NAV = [
   { href: '/admin/tables', label: 'Tables & floor', key: 'tables', Icon: TableProperties },
   { href: '/admin/staff', label: 'Team members', key: 'team', Icon: Users },
   { href: '/admin/reports', label: 'Sales reports', key: 'reports', Icon: BarChart3 },
+  { href: '/admin/intelligence', label: 'Intelligence', key: 'intelligence', Icon: Bot },
   { href: '/admin/activity', label: 'Activity log', key: 'activity', Icon: Activity },
   { href: '/admin/settings', label: 'Settings', key: 'settings', Icon: Settings2 },
 ]

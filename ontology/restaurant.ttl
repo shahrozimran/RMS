@@ -1,0 +1,33 @@
+@prefix rms: <https://rms.example/ontology#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://rms.example/ontology> a owl:Ontology ; owl:versionInfo "0.1.0" ;
+ rdfs:comment "Initial vocabulary. SQL remains authoritative; live graph materialization and validation are subsequent stages." .
+rms:Restaurant a owl:Class .
+rms:Order a owl:Class .
+rms:OrderLine a owl:Class .
+rms:MenuItem a owl:Class .
+rms:Ingredient a owl:Class .
+rms:Recipe a owl:Class .
+rms:RecipeLine a owl:Class .
+rms:KitchenStation a owl:Class .
+rms:Employee a owl:Class .
+rms:DiningTable a owl:Class .
+rms:Supplier a owl:Class .
+rms:Policy a owl:Class .
+rms:Evidence a owl:Class .
+rms:Recommendation a owl:Class .
+rms:contains a owl:ObjectProperty ; rdfs:domain rms:Order ; rdfs:range rms:OrderLine .
+rms:orderedItem a owl:ObjectProperty ; rdfs:domain rms:OrderLine ; rdfs:range rms:MenuItem .
+rms:hasRecipe a owl:ObjectProperty ; rdfs:domain rms:MenuItem ; rdfs:range rms:Recipe .
+rms:recipeLine a owl:ObjectProperty ; rdfs:domain rms:Recipe ; rdfs:range rms:RecipeLine .
+rms:requiresIngredient a owl:ObjectProperty ; rdfs:domain rms:RecipeLine ; rdfs:range rms:Ingredient .
+rms:supplies a owl:ObjectProperty ; rdfs:domain rms:Supplier ; rdfs:range rms:Ingredient .
+rms:qualifiedFor a owl:ObjectProperty ; rdfs:domain rms:Employee ; rdfs:range rms:KitchenStation .
+rms:supportedBy a owl:ObjectProperty ; rdfs:domain rms:Recommendation ; rdfs:range rms:Evidence .
+rms:quantity a owl:DatatypeProperty ; rdfs:range xsd:decimal .
+rms:canonicalUnit a owl:DatatypeProperty ; rdfs:range xsd:string .
+rms:observedAt a owl:DatatypeProperty ; rdfs:domain rms:Evidence ; rdfs:range xsd:dateTime .
+rms:sourceRecord a owl:DatatypeProperty ; rdfs:domain rms:Evidence ; rdfs:range xsd:string .

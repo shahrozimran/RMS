@@ -26,6 +26,55 @@ function load(file,mocks={}) {
 }
 const key='a-test-only-signing-key-with-more-than-32-bytes'
 process.env.JWT_SECRET=key
+
+test('agent APIs require a Supabase-backed administrator before privileged reads or writes',async()=>{
+  const rbac=load('lib/auth/rbac.ts')
+  for(const identity of [null,{id:'x',role:'Waiter',authType:'staff'},{id:'x',role:'Admin',authType:'staff'}]){
+    let privilegedCalls=0
+    const mocks={
+      '@/lib/auth/rbac':rbac,
+      '@/lib/auth/session':{getSession:async()=>identity},
+      '@/lib/supabase/server':{createAdminClient:async()=>{privilegedCalls++;throw Error('Unexpected database access')}},
+    }
+    const route=load('app/api/agents/route.ts',mocks)
+    const expected=identity?403:401
+    assert.equal((await route.GET()).status,expected)
+    assert.equal((await route.POST(new Request('https://rms.test/api/agents',{method:'POST',body:'{"action":"queue"}'}))).status,expected)
+    const review=load('app/api/agents/recommendations/[id]/route.ts',mocks)
+    assert.equal((await review.POST(new Request('https://rms.test/api/agents/recommendations/x',{method:'POST',body:'{}'}),{params:Promise.resolve({id:'x'})})).status,expected)
+    assert.equal(privilegedCalls,0)
+  }
+})
+
+test('agent command API rejects unsupported execution and additional privilege fields',async()=>{
+  let privilegedCalls=0
+  const route=load('app/api/agents/route.ts',{
+    '@/lib/auth/session':{getSession:async()=>({id:'test-admin',role:'Admin',authType:'admin'})},
+    '@/lib/supabase/server':{createAdminClient:async()=>{privilegedCalls++;throw Error('Unexpected database access')}},
+  })
+  for(const body of [{action:'execute',sql:'delete from orders'},{action:'configure',enabled:true,p_actor:'forged'},{action:'queue',order_id:'not-a-uuid'}]){
+    const response=await route.POST(new Request('https://rms.test/api/agents',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}))
+    assert.equal(response.status,400)
+  }
+  assert.equal(privilegedCalls,0)
+})
+
+test('development loopback origin normalization accepts local agent commands without trusting unrelated origins',async()=>{
+  const originalMode=process.env.NODE_ENV,originalOrigin=process.env.APP_ORIGIN
+  try{
+    process.env.NODE_ENV='development';delete process.env.APP_ORIGIN
+    const {proxy}=load('proxy.ts',{'@/lib/supabase/middleware':{updateSession:async()=>{throw Error('Unexpected browser authentication')}}})
+    const local=await proxy(new NextRequest('http://localhost:3000/api/agents',{method:'POST',headers:{host:'127.0.0.1:3000',origin:'http://127.0.0.1:3000'}}))
+    assert.equal(local.status,200)
+    const foreign=await proxy(new NextRequest('http://localhost:3000/api/agents',{method:'POST',headers:{host:'127.0.0.1:3000',origin:'https://attacker.test'}}))
+    assert.equal(foreign.status,403)
+    process.env.APP_ORIGIN='https://rms.test'
+    assert.equal((await proxy(new NextRequest('http://localhost:3000/api/agents',{method:'POST',headers:{host:'127.0.0.1:3000',origin:'http://127.0.0.1:3000'}}))).status,403)
+  }finally{
+    if(originalMode===undefined)delete process.env.NODE_ENV;else process.env.NODE_ENV=originalMode
+    if(originalOrigin===undefined)delete process.env.APP_ORIGIN;else process.env.APP_ORIGIN=originalOrigin
+  }
+})
 const auth=load('lib/auth/staff-auth.ts',{'@/lib/supabase/server':{}})
 const claims={userId:'00000000-0000-4000-8000-000000000001',sessionVersion:3,role:'Admin',permissions:{staff:{write:true}}}
 const sign=(overrides={},options={})=>jwt.sign({...claims,...overrides},key,{algorithm:'HS256',issuer:'rms',audience:'rms-staff',expiresIn:'1h',...options})
