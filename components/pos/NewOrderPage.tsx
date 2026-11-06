@@ -7,22 +7,22 @@ import { apiGet } from '@/lib/api/client'
 import PosWorkspace, { type OrderPayload } from '@/components/pos/PosWorkspace'
 import WorkspaceLoading from '@/components/ui/WorkspaceLoading'
 
-export default function NewOrderPage({ admin = false }: { admin?: boolean }) {
-  const [catalog,setCatalog] = useState<CatalogData | null>(null)
-  const [error,setError] = useState('')
+export default function NewOrderPage({ admin = false, initialCatalog, initialError = '' }: { admin?: boolean; initialCatalog?: CatalogData; initialError?: string }) {
+  const [catalog,setCatalog] = useState<CatalogData | null>(initialCatalog ?? null)
+  const [error,setError] = useState(initialError)
   const [retry,setRetry] = useState(0)
   const router = useRouter()
   useEffect(() => {
+    if (initialCatalog || (initialError && retry === 0)) return
     let active = true
     apiGet<CatalogData>('/api/catalog').then(data => {if(active) setCatalog(data)}).catch(error => {if(active) setError(error.message)})
     return () => {active=false}
-  }, [retry])
+  }, [retry, initialCatalog, initialError])
   const submit = async (payload: OrderPayload) => {
     const response = await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
     const result = await response.json()
     if (!response.ok) throw new Error(result.error || 'Unable to create order')
     router.push(admin ? `/admin/orders/${result.data.id}` : `/staff/orders/${result.data.id}/kitchen-receipt`)
-    router.refresh()
   }
   if (!catalog) return <WorkspaceLoading error={error} onRetry={() => {setError('');setRetry(r => r+1)}} />
   return <PosWorkspace catalog={catalog} onSubmit={submit} />

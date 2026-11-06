@@ -5,8 +5,6 @@ import { useParams, useRouter } from 'next/navigation'
 import { readSettings } from '@/lib/api/client'
 import { formatCurrency, type CurrencyConfig } from '@/lib/utils/currency'
 import Link from 'next/link'
-import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
 
 interface OrderItem {
   id: string
@@ -45,6 +43,7 @@ interface OrderDetail {
 }
 
 export default function StaffReceiptPage() {
+  const [exportingPdf, setExportingPdf] = useState(false)
   const params = useParams()
   const router = useRouter()
   const id = params.id as string
@@ -92,7 +91,8 @@ export default function StaffReceiptPage() {
 
   const downloadPDFReceipt = async () => {
     const element = receiptRef.current
-    if (!element) return
+    if (!element || exportingPdf) return
+    setExportingPdf(true)
 
     // Create a temporary container off-screen with a fixed width to ensure consistency
     const printContainer = document.createElement('div')
@@ -109,6 +109,9 @@ export default function StaffReceiptPage() {
     document.body.appendChild(printContainer)
 
     try {
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import('html2canvas'), import('jspdf'),
+      ])
       const canvas = await html2canvas(printContainer, {
         scale: 2,
         backgroundColor: '#ffffff',
@@ -129,6 +132,7 @@ export default function StaffReceiptPage() {
       console.error('PDF generation failed:', err)
     } finally {
       document.body.removeChild(printContainer)
+      setExportingPdf(false)
     }
   }
 
@@ -149,8 +153,8 @@ export default function StaffReceiptPage() {
           <button id="receipt-print-btn" className="btn btn-primary" onClick={printReceipt} style={{ width: '100%' }}>
             🖨 Print Receipt
           </button>
-          <button id="receipt-pdf-btn" className="btn btn-secondary" onClick={downloadPDFReceipt} style={{ width: '100%' }}>
-            📥 Download PDF
+          <button id="receipt-pdf-btn" className="btn btn-secondary" onClick={downloadPDFReceipt} disabled={exportingPdf} style={{ width: '100%' }}>
+            {exportingPdf ? 'Preparing PDF…' : '📥 Download PDF'}
           </button>
           <Link id="receipt-home-link" href="/staff/dashboard" className="btn btn-ghost" style={{ textDecoration: 'none', textAlign: 'center' }}>
             Go to Dashboard

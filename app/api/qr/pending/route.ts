@@ -18,6 +18,14 @@ export async function GET(request: NextRequest) {
     requirePermission(session, 'orders', 'write')
     const supabase = await createAdminClient()
 
+    // The navigation badge needs a number, never customer names or order items.
+    if (request.nextUrl.searchParams.get('count') === 'true') {
+      const { count, error } = await supabase.from('qr_pending_orders')
+        .select('id', { count: 'exact', head: true }).eq('status', 'pending')
+      if (error) throw error
+      return NextResponse.json({ count: count ?? 0 })
+    }
+
     const { data, error } = await supabase
       .from('qr_pending_orders')
       .select(`

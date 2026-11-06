@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import QRCode from 'qrcode'
 import { ArrowUpRight, TableProperties, Users, QrCode, Info } from 'lucide-react'
 
 interface Table {
@@ -140,6 +139,7 @@ export default function AdminTablesPage() {
     const url = `${origin}/order/${table.qr_token}`
     setQrUrl(url)
     try {
+      const QRCode = (await import('qrcode')).default
       const dataUrl = await QRCode.toDataURL(url, {
         width: 280,
         margin: 2,

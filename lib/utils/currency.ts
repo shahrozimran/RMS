@@ -32,6 +32,10 @@ export const SUPPORTED_CURRENCIES: CurrencyConfig[] = [
 /** Default fallback */
 export const DEFAULT_CURRENCY: CurrencyConfig = SUPPORTED_CURRENCIES[0]
 
+// Formatter construction is expensive. Reuse the formatter, never formatted
+// amounts or restaurant data. Bound the cache for arbitrary saved settings.
+const formatters = new Map<string, Intl.NumberFormat>()
+
 /**
  * Format a numeric amount as a currency string.
  * @param amount - The number to format
@@ -45,12 +49,19 @@ export function formatCurrency(
   if (isNaN(num)) return `${currency.symbol}0.00`
 
   try {
-    return new Intl.NumberFormat(currency.locale, {
-      style: 'currency',
-      currency: currency.code,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(num)
+    const key = JSON.stringify([currency.locale, currency.code])
+    let formatter = formatters.get(key)
+    if (!formatter) {
+      formatter = new Intl.NumberFormat(currency.locale, {
+        style: 'currency',
+        currency: currency.code,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+      if (formatters.size >= 32) formatters.clear()
+      formatters.set(key, formatter)
+    }
+    return formatter.format(num)
   } catch {
     return `${currency.symbol}${num.toFixed(2)}`
   }

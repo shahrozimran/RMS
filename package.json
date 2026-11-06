@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "node --test tests/*.test.mjs",
     "typecheck": "tsc --noEmit",
+    "perf:measure": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/measure-performance.mjs",
     "agents:worker": "node --env-file=.env.local scripts/agent-worker.mjs",
     "agents:once": "node --env-file=.env.local scripts/agent-worker.mjs --once",
     "create-admin": "node --env-file=.env.local scripts/create-admin.mjs"

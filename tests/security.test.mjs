@@ -25,6 +25,95 @@ function load(file,mocks={}) {
   return m.exports
 }
 const key='a-test-only-signing-key-with-more-than-32-bytes'
+
+test('server-rendered POS catalog keeps fresh permission checks before service-role reads',async()=>{
+  let reads=0
+  const catalog={products:[],categories:[],tables:[],settings:{}}
+  const identities=[null,{role:'Waiter',permissions:{}},{role:'Admin',permissions:{}}]
+  for(const identity of identities){
+    const {getPosCatalog}=load('lib/pos/catalog.ts',{
+      react:{cache:fn=>fn},
+      '@/lib/auth/session':{getSession:async()=>identity},
+      '@/lib/supabase/server':{createAdminClient:async()=>({rpc:async name=>{
+        assert.equal(name,'get_pos_catalog');reads++;return {data:catalog,error:null}
+      }})},
+    })
+    if(!identity||identity.role!=='Admin') await assert.rejects(getPosCatalog(),error=>error.status===(identity?403:401))
+    else assert.deepEqual(await getPosCatalog(),catalog)
+  }
+  assert.equal(reads,1)
+})
+
+test('QR badge returns a protected count without fetching customer/order payloads',async()=>{
+  let queries=0
+  const rbac=load('lib/auth/rbac.ts')
+  for(const identity of [null,{role:'Waiter',permissions:{}},{role:'Waiter',permissions:{orders:{write:true}}}]){
+    const route=load('app/api/qr/pending/route.ts',{
+      '@/lib/auth/rbac':rbac,
+      '@/lib/auth/session':{getSession:async()=>identity},
+      '@/lib/supabase/server':{createAdminClient:async()=>({from:table=>{
+        assert.equal(table,'qr_pending_orders');queries++
+        return {select:(fields,options)=>{
+          assert.equal(fields,'id');assert.deepEqual(options,{count:'exact',head:true})
+          return {eq:async(column,value)=>{
+            assert.equal(column,'status');assert.equal(value,'pending')
+            return {count:278,data:null,error:null}
+          }}
+        }}
+      }})},
+    })
+    const response=await route.GET(new NextRequest('https://rms.test/api/qr/pending?count=true'))
+    assert.equal(response.status,!identity?401:identity.permissions.orders?200:403)
+    if(response.ok) assert.deepEqual(await response.json(),{count:278})
+  }
+  assert.equal(queries,1)
+})
+
+test('proxy verifies claims and propagates refreshed cookies to both server and browser',async()=>{
+  let verified=0
+  const {updateSession}=load('lib/supabase/middleware.ts',{
+    '@supabase/ssr':{createServerClient:(_url,_key,{cookies})=>({auth:{getClaims:async()=>{
+      verified++
+      cookies.setAll([{name:'sb-test-auth-token',value:'refreshed',options:{httpOnly:true,path:'/'}}])
+      return {data:{claims:{sub:'identity'}},error:null}
+    }}})},
+  })
+  const request=new NextRequest('https://rms.test/admin/pos')
+  const response=await updateSession(request)
+  assert.equal(verified,1)
+  assert.equal(request.cookies.get('sb-test-auth-token').value,'refreshed')
+  assert.equal(response.cookies.get('sb-test-auth-token').value,'refreshed')
+  assert.equal(response.cookies.get('sb-test-auth-token').httpOnly,true)
+})
+
+test('public login and isolated design preview never call the authentication provider',async()=>{
+  const {proxy}=load('proxy.ts',{'@/lib/supabase/middleware':{updateSession:async()=>{throw Error('Unexpected auth request')}}})
+  for(const route of ['/login','/preview?view=pos']){
+    assert.equal((await proxy(new NextRequest('https://rms.test'+route))).status,200)
+  }
+})
+
+test('reused currency formatters preserve currency, locale and invalid-setting fallbacks',()=>{
+  const {formatCurrency,SUPPORTED_CURRENCIES}=load('lib/utils/currency.ts')
+  for(let run=0;run<2;run++)for(const currency of SUPPORTED_CURRENCIES){
+    for(const amount of [0,12.355,-45.6,'1234.5',null]){
+      const expected=new Intl.NumberFormat(currency.locale,{style:'currency',currency:currency.code,minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(amount))
+      assert.equal(formatCurrency(amount,currency),expected)
+    }
+  }
+  assert.equal(formatCurrency('invalid',{locale:'bad_locale',code:'BAD!',symbol:'X'}),'X0.00')
+  assert.equal(formatCurrency(12.5,{locale:'bad_locale',code:'BAD!',symbol:'X'}),'X12.50')
+})
+
+test('food image optimization only accepts configured local and public Supabase images',()=>{
+  const {canOptimizeFoodImage}=load('lib/utils/images.ts')
+  assert.equal(canOptimizeFoodImage('/images/food.jpg'),true)
+  assert.equal(canOptimizeFoodImage('https://project.supabase.co/storage/v1/object/public/menu/food.jpg'),true)
+  for(const url of ['//other.test/food.jpg','https://other.test/food.jpg','https://project.supabase.co.evil.test/storage/v1/object/public/menu/food.jpg','http://project.supabase.co/storage/v1/object/public/menu/food.jpg','https://project.supabase.co/storage/v1/object/sign/menu/food.jpg','https://name:password@project.supabase.co/storage/v1/object/public/menu/food.jpg','data:image/png;base64,AAA']){
+    assert.equal(canOptimizeFoodImage(url),false,url)
+  }
+})
+
 process.env.JWT_SECRET=key
 
 test('agent APIs require a Supabase-backed administrator before privileged reads or writes',async()=>{

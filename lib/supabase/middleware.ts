@@ -25,8 +25,9 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Refresh session
-  await supabase.auth.getUser()
+  // Verify/refresh the token with cached public keys when supported. The data
+  // access layer still checks getUser() and current database permissions.
+  await supabase.auth.getClaims()
 
   return supabaseResponse
 }

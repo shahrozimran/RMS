@@ -14,7 +14,7 @@ export default function StaffTopBar({ user }: { user: { name: string; role: stri
   const [loggingOut, setLoggingOut] = useState(false)
   const [error, setError] = useState('')
   useEffect(() => pollVisible(async () => {
-    try { const res = await fetch('/api/qr/pending'); if (res.ok) setPendingCount((await res.json()).data?.length || 0) } catch {}
+    try { const res = await fetch('/api/qr/pending?count=true', { cache: 'no-store' }); if (res.ok) setPendingCount((await res.json()).count || 0) } catch {}
   }), [])
   const logout = async () => {
     setLoggingOut(true)

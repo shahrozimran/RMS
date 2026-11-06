@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, Check, ChevronDown, ClipboardList, LayoutGrid, LoaderCircle, Minus, Plus, Search, ShoppingBag, StickyNote, Trash2, Truck, UserRound, Utensils, X } from 'lucide-react'
 import type { CatalogData, CatalogProduct, EditableOrder, Modifier } from '@/lib/api/types'
 import { formatCurrency } from '@/lib/utils/currency'
 import { buildTaxSummary, calculateGrandTotal } from '@/lib/utils/tax'
 import { repriceCartLine } from '@/lib/utils/cart'
-import FoodVisual from '@/components/ui/FoodVisual'
+import ProductGrid from '@/components/pos/ProductGrid'
 import EmptyState from '@/components/ui/EmptyState'
 
 export type OrderPayload = {
@@ -53,14 +53,18 @@ export default function PosWorkspace({ catalog, onSubmit, initialOrder, customer
   }, [customer])
   const currency = catalog.settings.currency
   const fmt = (value: number) => formatCurrency(value,currency)
-  const availableProducts = catalog.products.filter(p => p.is_available && !p.is_86d)
-  const products = availableProducts.filter(p => (category === null || p.category_id === category) && `${p.name} ${p.description || ''}`.toLowerCase().includes(search.toLowerCase()))
+  const deferredSearch = useDeferredValue(search)
+  const availableProducts = useMemo(() => catalog.products.filter(p => p.is_available && !p.is_86d), [catalog.products])
+  const products = useMemo(() => {
+    const query = deferredSearch.trim().toLowerCase()
+    return availableProducts.filter(p => (category === null || p.category_id === category) && `${p.name} ${p.description || ''}`.toLowerCase().includes(query))
+  }, [availableProducts, category, deferredSearch])
   const itemCount = cart.reduce((sum,line) => sum+line.quantity,0)
   const taxes = buildTaxSummary(cart)
   const totals = calculateGrandTotal({ subtotal: taxes.subtotal, tax_amount: taxes.total_tax,
     service_charge_type: catalog.settings.service_charge.type, service_charge_value: catalog.settings.service_charge.value, discount_amount: 0 })
 
-  const add = (product: CatalogProduct, label: string | null, mods: Modifier[]) => {
+  const add = useCallback((product: CatalogProduct, label: string | null, mods: Modifier[]) => {
     const chosen = product.price_variants?.find(v => v.label === label)
     const unitPrice = (Math.round(Number(chosen?.price ?? product.base_price)*100) + mods.reduce((sum,m) => sum+Math.round(Number(m.price)*100),0))/100
     const key = JSON.stringify([product.id,label,mods.map(m => m.id).sort((a,b) => a-b)])
@@ -71,13 +75,13 @@ export default function PosWorkspace({ catalog, onSubmit, initialOrder, customer
       return [...previous,{key,product_id:product.id,product_name:product.name,variant_label:label,quantity:1,unit_price:unitPrice,tax_rate:Number(product.tax_rate),notes:'',selected_modifiers:mods}]
     })
     setError('')
-  }
-  const choose = (product: CatalogProduct, label?: string) => {
+  }, [])
+  const choose = useCallback((product: CatalogProduct, label?: string) => {
     if (product.price_variants?.length || product.modifiers?.length) {
       setActiveProduct(product); setVariant(label || product.price_variants?.[0]?.label || ''); setSelectedMods([])
       dialog.current?.showModal()
     } else add(product,null,[])
-  }
+  }, [add])
   const changeQuantity = (key: string,delta: number) => setCart(previous => previous.map(line => line.key === key ? {...line,quantity:Math.min(100,line.quantity+delta)} : line).filter(line => line.quantity > 0))
   const submit = async () => {
     if (!cart.length) { setError('Add at least one item to the order.'); return }
@@ -101,7 +105,7 @@ export default function PosWorkspace({ catalog, onSubmit, initialOrder, customer
       <section className="pos-menu" aria-label="Menu catalog">
         <div className="filter-toolbar"><label className="search-field"><Search size={16} /><input type="search" placeholder="Search dishes, drinks and more…" aria-label="Search menu" value={search} onChange={e => setSearch(e.target.value)} /></label><span className="count-note">{products.length} items</span></div>
         <div className="filter-tabs" role="group" aria-label="Menu categories"><button className={`filter-tab ${category === null ? 'active' : ''}`} onClick={() => setCategory(null)}><LayoutGrid size={13} />All items</button>{catalog.categories.map(c => <button key={c.id} className={`filter-tab ${category === c.id ? 'active' : ''}`} onClick={() => setCategory(c.id)}>{c.name}<span>{availableProducts.filter(p => p.category_id === c.id).length}</span></button>)}</div>
-        {products.length === 0 ? <EmptyState title="Nothing on this tray yet" description="Try another category or a different search." action={<button className="btn btn-secondary btn-sm" onClick={() => {setSearch('');setCategory(null)}}>Reset filters</button>} /> : <div className="pos-grid">{products.map(p => <article className="pos-product" key={p.id}><button className="product-media-add" onClick={() => choose(p)} aria-label={`Add ${p.name}`}><FoodVisual name={p.name} image={p.image_url} /></button><div className="pos-product-body"><h3>{p.name}</h3><p>{p.description || 'Made fresh, just for you.'}</p><div className="pos-product-action"><span>{p.price_variants?.length ? <><small>from </small>{fmt(Math.min(...p.price_variants.map(v => Number(v.price))))}</> : fmt(Number(p.base_price))}</span><button onClick={() => choose(p)} aria-label={`Add ${p.name} to order`}><Plus size={15} /></button></div>{!!p.price_variants?.length && <div className="pos-variants">{p.price_variants.map(v => <button key={v.label} onClick={() => choose(p,v.label)}>{v.label} · {fmt(v.price)}</button>)}</div>}</div></article>)}</div>}
+        {products.length === 0 ? <EmptyState title="Nothing on this tray yet" description="Try another category or a different search." action={<button className="btn btn-secondary btn-sm" onClick={() => {setSearch('');setCategory(null)}}>Reset filters</button>} /> : <ProductGrid products={products} currency={currency} onChoose={choose} />}
       </section>
       <aside ref={orderPanel} id="current-order" className="order-panel" aria-label="Current order">
         <div className="order-panel-header"><div><h2>{customer ? 'Your order' : 'Current order'}</h2><small>{customer ? restaurantName || 'Made with care' : 'Review the details before sending'}</small></div><button className="icon-button" disabled={!cart.length} onClick={() => setCart([])} aria-label="Clear order" title="Clear order"><Trash2 size={14} /></button></div>

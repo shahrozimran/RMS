@@ -5,8 +5,6 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, type CurrencyConfig } from '@/lib/utils/currency'
 import Link from 'next/link'
-import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
 
 interface OrderItem {
   id: string
@@ -70,6 +68,7 @@ export default function AdminOrderDetailPage() {
 
   const supabase = createClient()
   const receiptRef = useRef<HTMLDivElement>(null)
+  const [exportingPdf, setExportingPdf] = useState(false)
 
   useEffect(() => {
     fetchCurrencyAndRestaurant()
@@ -140,7 +139,8 @@ export default function AdminOrderDetailPage() {
 
   const downloadPDFReceipt = async () => {
     const element = receiptRef.current
-    if (!element) return
+    if (!element || exportingPdf) return
+    setExportingPdf(true)
 
     // Create a temporary container off-screen with a fixed width to ensure consistency
     const printContainer = document.createElement('div')
@@ -157,6 +157,9 @@ export default function AdminOrderDetailPage() {
     document.body.appendChild(printContainer)
 
     try {
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import('html2canvas'), import('jspdf'),
+      ])
       const canvas = await html2canvas(printContainer, {
         scale: 2,
         backgroundColor: '#ffffff',
@@ -177,6 +180,7 @@ export default function AdminOrderDetailPage() {
       console.error('PDF generation failed:', err)
     } finally {
       document.body.removeChild(printContainer)
+      setExportingPdf(false)
     }
   }
 
@@ -198,7 +202,7 @@ export default function AdminOrderDetailPage() {
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
           <button id="detail-print-btn" className="btn btn-secondary" onClick={printReceipt}>🖨 Print Bill</button>
-          <button id="detail-pdf-btn" className="btn btn-secondary" onClick={downloadPDFReceipt}>📥 Save PDF</button>
+          <button id="detail-pdf-btn" className="btn btn-secondary" onClick={downloadPDFReceipt} disabled={exportingPdf}>{exportingPdf ? 'Preparing PDF…' : '📥 Save PDF'}</button>
           {order.status !== 'void' && order.status !== 'refunded' && (
             <button id="detail-void-btn" className="btn btn-danger" onClick={() => setShowVoidModal(true)}>
               Void Order

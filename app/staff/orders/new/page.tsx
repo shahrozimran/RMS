@@ -1,2 +1,2 @@
-import NewOrderPage from '@/components/pos/NewOrderPage'
-export default function Page(){return <NewOrderPage/>}
+import OrderEntry from '@/components/pos/OrderEntry'
+export default function Page(){return <OrderEntry/>}

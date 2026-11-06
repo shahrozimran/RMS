@@ -4,8 +4,6 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, type CurrencyConfig } from '@/lib/utils/currency'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts'
-import Papa from 'papaparse'
-import jsPDF from 'jspdf'
 
 interface AnalyticsRow {
   day: string
@@ -84,7 +82,8 @@ export default function AdminReportsPage() {
     }
   }
 
-  const exportCSV = () => {
+  const exportCSV = async () => {
+    const Papa = (await import('papaparse')).default
     const csvData = analytics.map(row => ({
       Date: row.day,
       'Orders Completed': row.orders_count,
@@ -100,11 +99,13 @@ export default function AdminReportsPage() {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+    URL.revokeObjectURL(link.href)
   }
 
   const exportPDF = async () => {
     setIsExporting(true)
     try {
+      const { default: jsPDF } = await import('jspdf')
       const pdf = new jsPDF('p', 'mm', 'a4')
       const pageW = 210
       const pageH = 297

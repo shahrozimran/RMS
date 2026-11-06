@@ -28,8 +28,9 @@ export async function proxy(request: NextRequest) {
     return response
   }
   if (pathname === '/') return NextResponse.redirect(new URL('/login', request.url))
-  // Public QR pages never need a Supabase Auth round trip.
-  if (pathname === '/order' || pathname.startsWith('/order/')) return NextResponse.next()
+  // These pages do not read a signed-in Supabase session. Protected layouts and
+  // APIs continue to authorize each request at the data access boundary.
+  if (pathname === '/login' || pathname === '/preview' || pathname === '/order' || pathname.startsWith('/order/')) return NextResponse.next()
   const response = await updateSession(request)
   response.headers.set('Cache-Control', 'private, no-store, max-age=0')
   return response

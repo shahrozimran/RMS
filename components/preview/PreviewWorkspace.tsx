@@ -1,22 +1,25 @@
 'use client'
 
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { useRef, useState } from 'react'
-import { AreaChart, Area, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { ArrowDownToLine, ArrowUpRight, CalendarDays, CheckCircle2, CircleDot, ClipboardList, CreditCard, DollarSign, Plus, Search, ShieldCheck, TableProperties, Users, UtensilsCrossed, X } from 'lucide-react'
 import AdminSidebar from '@/components/layout/AdminSidebar'
 import AppHeader from '@/components/layout/AppHeader'
-import Dashboard from '@/app/admin/dashboard/DashboardClient'
-import MenuWorkspace from '@/components/menu/MenuWorkspace'
-import PosWorkspace from '@/components/pos/PosWorkspace'
-import GuestOrdering from '@/components/customer/GuestOrdering'
 import EmptyState from '@/components/ui/EmptyState'
-import SettingsWorkspace from '@/components/settings/SettingsWorkspace'
-import TeamWorkspace from '@/components/team/TeamWorkspace'
-import AgentsWorkspace from '@/components/agents/AgentsWorkspace'
+import WorkspaceLoading from '@/components/ui/WorkspaceLoading'
 import { agentDemo } from '@/lib/agents/demo'
 import { previewCatalog as catalog, previewDashboard, previewOrders, previewTeam } from '@/lib/preview/data'
 import { formatCurrency } from '@/lib/utils/currency'
+const loading = () => <WorkspaceLoading />
+const Dashboard = dynamic(() => import('@/app/admin/dashboard/DashboardClient'), { loading })
+const MenuWorkspace = dynamic(() => import('@/components/menu/MenuWorkspace'), { loading })
+const PosWorkspace = dynamic(() => import('@/components/pos/PosWorkspace'), { loading })
+const GuestOrdering = dynamic(() => import('@/components/customer/GuestOrdering'), { loading })
+const SettingsWorkspace = dynamic(() => import('@/components/settings/SettingsWorkspace'), { loading })
+const TeamWorkspace = dynamic(() => import('@/components/team/TeamWorkspace'), { loading })
+const AgentsWorkspace = dynamic(() => import('@/components/agents/AgentsWorkspace'), { loading })
+const RevenueChart = dynamic(() => import('@/components/preview/RevenueChart'), { loading })
 const fmt=(n:number)=>formatCurrency(n,catalog.settings.currency)
 const titles:Record<string,string>={dashboard:'Overview',menu:'Menu management',pos:'Point of sale',customer:'Guest menu',tables:'Tables & floor',team:'Team members',orders:'Orders',reports:'Sales reports',activity:'Activity log',settings:'Settings',intelligence:'Intelligence'}
 const activities=[{name:'Menu availability updated',detail:'Vanilla ice cream marked as sold out',by:'Amelia James',time:'2 minutes ago',Icon:UtensilsCrossed},{name:'Payment completed',detail:'Order #10482D · cash payment received',by:'Oliver Chen',time:'8 minutes ago',Icon:CreditCard},{name:'New order created',detail:'Table 03 · 3 items sent to the kitchen',by:'Sofia Ahmed',time:'12 minutes ago',Icon:ClipboardList},{name:'Table status updated',detail:'Table 07 is being prepared for the next guest',by:'Sofia Ahmed',time:'18 minutes ago',Icon:TableProperties},{name:'Team member signed in',detail:'Morning service is ready to begin',by:'Oliver Chen',time:'32 minutes ago',Icon:ShieldCheck}]
@@ -49,7 +52,7 @@ const reportData=[{day:'Mon',sales:1840,orders:48},{day:'Tue',sales:2190,orders:
 function Reports(){
  const [range,setRange]=useState('week');const points=range==='week'?reportData:reportData.slice(-3);const total=points.reduce((s,p)=>s+p.sales,0);const orders=points.reduce((s,p)=>s+p.orders,0)
  function download(){const blob=new Blob(['Day,Sales,Orders\n'+points.map(p=>`${p.day},${p.sales},${p.orders}`).join('\n')],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='sample-sales-report.csv';a.click();URL.revokeObjectURL(url)}
- return <><Title eyebrow="A clearer picture of your business" title="Good decisions start here." description="Follow the numbers behind your service. Sample reporting data."><button className="btn btn-secondary" onClick={download}><ArrowDownToLine size={14}/>Export CSV</button></Title><div className="filter-toolbar"><div className="filter-tabs"><button className={`filter-tab ${range==='week'?'active':''}`} onClick={()=>setRange('week')}>Sample week</button><button className={`filter-tab ${range==='weekend'?'active':''}`} onClick={()=>setRange('weekend')}>Sample weekend</button></div><span className="count-note">Illustrative data · no live sales connection</span></div><div className="metric-grid">{[{label:'Total revenue',value:fmt(total),Icon:DollarSign},{label:'Orders served',value:orders,Icon:ClipboardList},{label:'Average order value',value:fmt(total/orders),Icon:CreditCard},{label:'Daily average',value:fmt(total/points.length),Icon:CalendarDays}].map(m=><div className="metric-card" key={m.label}><div className="metric-top">{m.label}<span className="metric-icon"><m.Icon size={16}/></span></div><div className="metric-value num">{m.value}</div><div className="metric-foot">Selected sample period</div></div>)}</div><section className="panel"><div className="panel-heading"><div><h2>A week in service</h2><p>Sample daily revenue</p></div><span className="badge badge-green">USD</span></div><div style={{padding:'15px 25px 25px',height:310}}><ResponsiveContainer width="100%" height="100%"><AreaChart data={points} margin={{left:0,right:12,top:10,bottom:0}}><defs><linearGradient id="salesFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#4c9169" stopOpacity={.2}/><stop offset="100%" stopColor="#4c9169" stopOpacity={0}/></linearGradient></defs><CartesianGrid vertical={false} stroke="#edf1ee" strokeDasharray="4 4"/><XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fill:'#829187',fontSize:11}}/><YAxis tickFormatter={n=>`$${Number(n)/1000}k`} axisLine={false} tickLine={false} tick={{fill:'#829187',fontSize:10}}/><Tooltip formatter={value=>fmt(Number(value))} contentStyle={{borderRadius:10,border:'1px solid #e3e9e5',fontSize:12}}/><Area type="monotone" dataKey="sales" name="Revenue" stroke="#43865f" strokeWidth={2.5} fill="url(#salesFill)"/></AreaChart></ResponsiveContainer></div></section></>
+ return <><Title eyebrow="A clearer picture of your business" title="Good decisions start here." description="Follow the numbers behind your service. Sample reporting data."><button className="btn btn-secondary" onClick={download}><ArrowDownToLine size={14}/>Export CSV</button></Title><div className="filter-toolbar"><div className="filter-tabs"><button className={`filter-tab ${range==='week'?'active':''}`} onClick={()=>setRange('week')}>Sample week</button><button className={`filter-tab ${range==='weekend'?'active':''}`} onClick={()=>setRange('weekend')}>Sample weekend</button></div><span className="count-note">Illustrative data · no live sales connection</span></div><div className="metric-grid">{[{label:'Total revenue',value:fmt(total),Icon:DollarSign},{label:'Orders served',value:orders,Icon:ClipboardList},{label:'Average order value',value:fmt(total/orders),Icon:CreditCard},{label:'Daily average',value:fmt(total/points.length),Icon:CalendarDays}].map(m=><div className="metric-card" key={m.label}><div className="metric-top">{m.label}<span className="metric-icon"><m.Icon size={16}/></span></div><div className="metric-value num">{m.value}</div><div className="metric-foot">Selected sample period</div></div>)}</div><section className="panel"><div className="panel-heading"><div><h2>A week in service</h2><p>Sample daily revenue</p></div><span className="badge badge-green">USD</span></div><div style={{padding:'15px 25px 25px',height:310}}><RevenueChart points={points}/></div></section></>
 }
 function ActivityLog(){
  const [search,setSearch]=useState('');const list=activities.filter(a=>`${a.name} ${a.detail} ${a.by}`.toLowerCase().includes(search.toLowerCase()))
