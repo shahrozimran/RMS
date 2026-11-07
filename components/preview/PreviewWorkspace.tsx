@@ -24,9 +24,10 @@ const AgentsWorkspace = dynamic(() => import('@/components/agents/AgentsWorkspac
 const AskWorkspace = dynamic(() => import('@/components/agents/AskWorkspace'), { loading })
 const AlertsWorkspace = dynamic(() => import('@/components/agents/AlertsWorkspace'), { loading })
 const KnowledgeLibrary = dynamic(() => import('@/components/agents/KnowledgeLibrary'), { loading })
+const InventoryWorkspace = dynamic(() => import('@/components/inventory/InventoryWorkspace'), { loading })
 const RevenueChart = dynamic(() => import('@/components/preview/RevenueChart'), { loading })
 const fmt=(n:number)=>formatCurrency(n,catalog.settings.currency)
-const titles:Record<string,string>={dashboard:'Overview',menu:'Menu management',pos:'Point of sale',customer:'Guest menu',tables:'Tables & floor',team:'Team members',orders:'Orders',reports:'Sales reports',activity:'Activity log',settings:'Settings',intelligence:'Intelligence'}
+const titles:Record<string,string>={dashboard:'Overview',menu:'Menu management',pos:'Point of sale',customer:'Guest menu',tables:'Tables & floor',team:'Team members',orders:'Orders',reports:'Sales reports',activity:'Activity log',settings:'Settings',intelligence:'Intelligence',inventory:'Ingredients'}
 const activities=[{name:'Menu availability updated',detail:'Vanilla ice cream marked as sold out',by:'Amelia James',time:'2 minutes ago',Icon:UtensilsCrossed},{name:'Payment completed',detail:'Order #10482D · cash payment received',by:'Oliver Chen',time:'8 minutes ago',Icon:CreditCard},{name:'New order created',detail:'Table 03 · 3 items sent to the kitchen',by:'Sofia Ahmed',time:'12 minutes ago',Icon:ClipboardList},{name:'Table status updated',detail:'Table 07 is being prepared for the next guest',by:'Sofia Ahmed',time:'18 minutes ago',Icon:TableProperties},{name:'Team member signed in',detail:'Morning service is ready to begin',by:'Oliver Chen',time:'32 minutes ago',Icon:ShieldCheck}]
 export default function PreviewWorkspace({view,issue,checkFilter='waiting'}:{view:string;issue?:string;checkFilter?:'waiting'|'failed'|'all'}){
  const [toast,setToast]=useState('')
@@ -34,7 +35,7 @@ export default function PreviewWorkspace({view,issue,checkFilter='waiting'}:{vie
  const notify=(message:string)=>{if(timer.current)clearTimeout(timer.current);setToast(message);timer.current=setTimeout(()=>setToast(''),5500)}
  const sampleSubmit=async()=>{notify('Preview order received. Sample data only — no restaurant records changed.')}
  const helpPage = helpDeskPreviewPage(view)
- const helpContent = helpPage === 'ask' ? <AskWorkspace preview/> : helpPage === 'alerts' ? <AlertsWorkspace admin preview issueId={issue}/>
+ const helpContent = view === 'inventory' ? <InventoryWorkspace preview/> : helpPage === 'ask' ? <AskWorkspace preview/> : helpPage === 'alerts' ? <AlertsWorkspace admin preview issueId={issue}/>
   : helpPage === 'knowledge' ? <HelpDeskFrame page="knowledge" preview><KnowledgeLibrary preview/></HelpDeskFrame>
   : helpPage ? <AgentsWorkspace initial={agentDemo} preview page={helpPage} checkFilter={checkFilter} focusedIssue={agentDemo.recommendations.find(item=>item.id===issue)}/> : null
  const banner=<div className="preview-banner"><span className="preview-label"><CircleDot size={11}/>Design preview · sample data</span><div><Link href="/preview?view=pos">Point of sale</Link><Link href="/preview?view=customer">Guest menu</Link><a href="/login">Sign in<ArrowUpRight size={10}/></a></div></div>

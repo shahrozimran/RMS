@@ -6,16 +6,17 @@ export const contextSchema = z.object({
   order: z.object({
     id: z.uuid(), status: z.enum(['draft','active','billed','paid','void','refunded']),
     created_at: z.string().datetime({ offset: true }), updated_at: z.string().datetime({ offset: true }),
-    source: z.string().max(30),
+    source: z.string().max(30), stock_confirmed: z.boolean().optional(),
   }).strict(),
   products: z.array(z.object({
     id: z.uuid().nullable(), name: z.string().max(300), quantity: amount.positive(),
     available: z.boolean(), has_variants: z.boolean(), has_modifiers: z.boolean(), has_recipe: z.boolean(),
+    makeable: amount.int().nonnegative().nullable().optional(),
   }).strict()).max(200),
   ingredients: z.array(z.object({
     id: z.uuid(), name: z.string().max(300), unit: z.string().max(50),
     on_hand: amount, threshold: amount, required: amount.positive(), open_demand: amount.nonnegative(),
-  }).strict()).max(1000),
+  }).strict()).max(4000),
 }).strict()
 
 export const evidenceSchema = z.object({

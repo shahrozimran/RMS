@@ -5,7 +5,7 @@ import { agentRoles, insightSchema, knowledgeHitSchema, type AgentRole, type AiR
 
 const roleTasks: Record<AgentRole, string> = {
   order: 'Review open order status, age, current menu availability and service policy.',
-  inventory: 'Check mapped demand, stock and reorder thresholds. Treat variant or modifier coverage as uncertain.',
+  inventory: 'Check stock, outstanding legacy demand and how many more servings the current base recipe can make. Yields are for one dish at a time and cannot be added across shared ingredients.',
   sales: 'Review recorded paid order volume and popular items. Give no margin, price or demand forecast without evidence.',
   kitchen: 'Review active tickets and the order and inventory handoff. Flag sequencing questions for staff. Actual station progress and preparation times are unavailable.',
   staff: 'Review shift coverage and assigned open-order counts with the kitchen context. Skills and station assignments are unavailable.',
@@ -73,8 +73,11 @@ function liveSources(job: AgentJob, facts: OperationsFacts): Record<AgentRole, C
       totalProductGroups: products.length, unavailable: products.filter(product => !product.available).length,
       items: products.slice(0, 10).map(product => ({ name: redactContacts(product.name).slice(0, 80), quantity: product.quantity, available: product.available })) }),
     inventory: source('inventory', 'Mapped stock snapshot', {
+      stockAlreadyDeductedForOrder: order.stock_confirmed ?? false,
       uncoveredProductGroups: products.filter(product => !product.has_recipe || product.has_variants || product.has_modifiers).length,
       mappedIngredients: ingredients.length,
+      servingsFromRemainingStock: products.filter(product => product.makeable != null).slice(0, 8)
+        .map(product => ({ name: redactContacts(product.name).slice(0, 80), baseRecipeServingsForThisDishAlone: product.makeable })),
       riskCount: ingredients.filter(item => item.on_hand - item.open_demand <= item.threshold).length,
       risks: ingredients.filter(item => item.on_hand - item.open_demand <= item.threshold).slice(0, 6).map(item => ({
         name: redactContacts(item.name).slice(0, 80), unit: redactContacts(item.unit), onHand: item.on_hand,

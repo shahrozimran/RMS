@@ -41,3 +41,13 @@ Apply `supabase/migrations/016_help_desk.sql` after 015 for questions and alerts
 Ask a question saves the question, result and cited excerpts in the asking administrator's history. It looks up matching current issues, saved policies and selected live counts. When OpenRouter is configured it also searches document embeddings and can produce a cited explanation. Source lookup works without the key. Questions have a separate rate limit of 12 per administrator per hour.
 
 Administrators can open Alerts to message an active team member or choose **Alert a team member** on an issue. Recipients open **Alerts** from the staff header and mark the message as read. The sender can see read status in **Sent alerts**. Active administrators receive their own in-app alerts when an urgent issue is recorded or an order check exhausts retries. The header checks unread counts while the tab is visible.
+
+## Ingredients and recipes
+
+Apply `supabase/migrations/017_ingredient_inventory.sql` after 016, then deploy the matching application and worker. Open **Ingredients** in the admin sidebar. For each ingredient, set its stock unit, physical count and low-stock level. In **Recipes & how many we can make**, select a dish and enter what one serving uses, in each ingredient's stock unit. For example, if chicken is stocked in grams, enter 120 for a 120 g serving. The same chicken can be used in any number of recipes.
+
+Sending a POS order to the kitchen or confirming a QR order deducts the recorded recipe amounts in one transaction. A shortage stops confirmation and leaves the QR request pending. Edits apply the difference from the confirmed quantities and use the recipe recorded for each dish on that ticket. Voids return the recorded amounts. Older open orders deduct at payment unless edited under the new flow. Confirmed orders deduct only once, even if paid later. Sizes and extras share the base recipe. Dishes without a saved recipe use no tracked stock.
+
+The inventory screen shows the maximum number of servings each base recipe can make from current stock. These counts are for each dish separately because dishes can share ingredients. The inventory review and **Ask a question** use these live counts. Try “How many chicken pizzas can we make?” or “What is running low?” Administrators get an alert when a count crosses its low-stock level. See the latest changes under **Stock history**.
+
+Run the development server and open `http://127.0.0.1:3000/preview?view=inventory` to try sample counts and recipes.

@@ -1,6 +1,6 @@
 export type TeamAlert = {
   id: string
-  kind: 'staff_message' | 'issue' | 'check_failed'
+  kind: 'staff_message' | 'issue' | 'check_failed' | 'low_stock'
   title: string
   message: string
   issue_id: string | null

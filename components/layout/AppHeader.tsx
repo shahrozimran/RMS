@@ -12,6 +12,7 @@ const destinations = [
   { name: 'Point of sale', description: 'Take a new order', href: '/admin/pos' },
   { name: 'Orders', description: 'Transactions and order history', href: '/admin/orders' },
   { name: 'Menu', description: 'Dishes, pricing and availability', href: '/admin/menu' },
+  { name: 'Ingredients', description: 'Stock on hand, recipes and how many dishes you can make', href: '/admin/inventory' },
   { name: 'Team', description: 'People and permissions', href: '/admin/staff' },
   { name: 'Tables', description: 'Floor plan and QR codes', href: '/admin/tables' },
   { name: 'Reports', description: 'Sales and performance', href: '/admin/reports' },

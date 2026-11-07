@@ -48,16 +48,21 @@ export async function POST(request: Request) {
     try {
       const signal = AbortSignal.timeout(28000)
       const model = hasOpenRouterKey() ? createOpenRouter() : null
-      const { data, error } = await db.rpc('help_desk_question_facts', { p_actor: actor.id, p_question: question }).abortSignal(signal)
+      const args = { p_actor: actor.id, p_question: question }
+      const [{ data, error }, inventory] = await Promise.all([
+        db.rpc('help_desk_question_facts', args).abortSignal(signal),
+        db.rpc('inventory_question_facts', args).abortSignal(signal),
+      ])
       if (error) throw new Error('QUESTION_FACTS_FAILED')
-      const sources = z.array(questionSource).max(8).parse(data)
+      const currentStock = inventory.error ? [] : z.array(questionSource).max(6).parse(inventory.data)
+      const sources = [...currentStock, ...z.array(questionSource).max(8).parse(data)].slice(0, 8)
       try {
         if (model) {
           const [embedding] = await model.embed([question], signal)
           const retrieved = await db.rpc('search_agent_knowledge', { p_queries: [{ role: 'all', terms: question, embedding }] }).abortSignal(signal)
           if (retrieved.error) throw new Error('QUESTION_RETRIEVAL_FAILED')
           const hits = z.array(knowledgeHitSchema).max(2).parse(retrieved.data)
-          sources.unshift(...hits.map(hit => ({ id: `D-${hit.id}`, kind: 'document' as const,
+          sources.splice(currentStock.length, 0, ...hits.map(hit => ({ id: `D-${hit.id}`, kind: 'document' as const,
             title: hit.title, excerpt: hit.body, documentId: hit.document_id, chunk: hit.position })))
         }
         result = await answerQuestion(question, sources, model, signal)

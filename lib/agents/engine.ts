@@ -18,12 +18,15 @@ export function evaluateOrder(input: unknown): AgentOutput {
     const risks = context.ingredients.filter(i => Math.round((i.on_hand-i.open_demand)*1000)/1000 <= i.threshold)
     if (risks.length) {
       const shortage = risks.some(i => i.on_hand < i.open_demand)
-      inventoryEvidence.push(...risks.slice(0,16).map(i => evidence('ingredients',i.id,`${i.name}: mapped demand`,
-        `On hand ${i.on_hand} ${i.unit}; open-order demand ${i.open_demand} ${i.unit}; this order ${i.required} ${i.unit}; reorder threshold ${i.threshold} ${i.unit}.`)))
+      inventoryEvidence.push(...risks.slice(0,16).map(i => evidence('ingredients',i.id,`${i.name.slice(0,220)} · Stock check`,
+        `On hand ${i.on_hand} ${i.unit}. Older orders still need ${i.open_demand} ${i.unit}. This order ${context.order.stock_confirmed ? 'used' : 'needs'} ${i.required} ${i.unit}. Low stock level ${i.threshold} ${i.unit}.`)))
       findings.push({ kind:'stock_pressure', severity:shortage?'high':'medium',
         title:shortage?'Mapped ingredient demand exceeds stock':'Mapped ingredients are near their reorder threshold',
-        summary:`${risks.length} ingredient(s) need a stock review. Open-order demand is an estimate across active and billed orders, not a stock reservation. Verify the physical count and outstanding orders before acting.`, evidence:[...inventoryEvidence] })
+        summary:`${risks.length} ingredient(s) need a stock review. On-hand counts already reflect confirmed deductions. Outstanding demand covers older tickets still due to deduct. Verify the physical count before acting.`, evidence:[...inventoryEvidence] })
     }
+    inventoryEvidence.push(...context.products.filter(p => p.makeable != null).slice(0, 16 - inventoryEvidence.length)
+      .map(p => evidence('product_ingredients',p.id || 'deleted-item',p.name.slice(0,250),
+        `Remaining stock can make up to ${p.makeable} using the current base recipe for this dish alone. Other dishes may use the same ingredients.`)))
     if (unmapped.length) {
       findings.push({ kind:'recipe_review', severity:'medium', title:'Recipe coverage needs a human check',
         summary:`${unmapped.length} item(s) have no ingredient mapping or use variants/modifiers without separate recipe definitions. Ingredient checks cover the stored base recipe only; complete availability cannot be established.`,
@@ -46,8 +49,8 @@ export function evaluateOrder(input: unknown): AgentOutput {
     messages:[
       {task_id:job.id,sender:'order',recipient:'supervisor',objective:'Review current menu availability and open-order age.',status:orderEvidence.length?'attention':'clear',evidence:orderEvidence,
         constraints:['Advisory only; staff confirm or reject orders.','No kitchen ETA is inferred from order creation time.']},
-      {task_id:job.id,sender:'inventory',recipient:'supervisor',objective:'Check base recipe coverage and outstanding ingredient demand.',status:unmapped.length?'insufficient_data':inventoryEvidence.length?'attention':'clear',evidence:inventoryEvidence,
-        constraints:['Only stored ingredient mappings are considered.','Open-order demand is not a stock reservation.','Variants and modifiers need explicit ingredient definitions.']},
+      {task_id:job.id,sender:'inventory',recipient:'supervisor',objective:'Check ingredient stock and how many more servings the base recipes can make.',status:unmapped.length?'insufficient_data':findings.some(f => f.kind === 'stock_pressure')?'attention':'clear',evidence:inventoryEvidence,
+        constraints:['Yield is a one-dish estimate from current stock.','Confirmed deductions are already reflected in stock.','Sizes and extras use the base recipe.']},
       {task_id:job.id,sender:'supervisor',recipient:'administrator',objective:'Combine evidence and request human review where needed.',status:findings.length?'attention':'clear',
         evidence:findings.flatMap(f=>f.evidence).slice(0,16),constraints:['Acknowledgement records a review, not execution.','Recheck source freshness before accepting a review.']},
     ] })

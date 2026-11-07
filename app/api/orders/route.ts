@@ -4,7 +4,8 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { requirePermission } from '@/lib/auth/rbac'
 import { createOrderSchema } from '@/lib/utils/validation'
-import { apiError, pagination } from '@/lib/api/errors'
+import { ApiError, apiError, pagination } from '@/lib/api/errors'
+import { z } from 'zod'
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,8 +33,10 @@ export async function POST(request: NextRequest) {
     requirePermission(session, 'orders', 'write')
     const parsed = createOrderSchema.safeParse(await readJson(request))
     if (!parsed.success) return NextResponse.json({ error: 'Validation error', details: parsed.error.flatten() }, { status: 400 })
+    const key = request.headers.get('Idempotency-Key')
+    if (key !== null && !z.uuid().safeParse(key).success) throw new ApiError('Invalid order request ID.')
     const db = await createAdminClient()
-    const { data, error } = await db.rpc('save_order', { p_actor: session!.id, p_payload: parsed.data })
+    const { data, error } = await db.rpc('save_order', { p_actor: session!.id, p_payload: { ...parsed.data, ...(key ? { _request_id: key } : {}) } })
     if (error) throw error
     return NextResponse.json({ data }, { status: 201 })
   } catch (error) { return apiError(error) }

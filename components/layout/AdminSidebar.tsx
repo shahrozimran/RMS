@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { Activity, ArrowUpRight, BarChart3, Bell, BookOpen, Bot, ChevronDown, CircleAlert, Clock3, LayoutDashboard, LogOut, Menu, MessageCircle, Settings2, ShieldCheck, Store, TableProperties, Users, UtensilsCrossed, X, ClipboardList, Monitor } from 'lucide-react'
+import { Activity, ArrowUpRight, BarChart3, Bell, BookOpen, Bot, Boxes, ChevronDown, CircleAlert, Clock3, LayoutDashboard, LogOut, Menu, MessageCircle, Settings2, ShieldCheck, Store, TableProperties, Users, UtensilsCrossed, X, ClipboardList, Monitor } from 'lucide-react'
 import Brand from '@/components/ui/Brand'
 import { helpDeskHref, helpDeskPages, helpDeskPreviewPage } from '@/lib/agents/help-desk'
 
@@ -17,6 +17,7 @@ export const ADMIN_NAV = [
   { href: '/admin/pos', label: 'Point of sale', key: 'pos', Icon: Monitor },
   { href: '/admin/orders', label: 'Orders', key: 'orders', Icon: ClipboardList, Monitor },
   { href: '/admin/menu', label: 'Menu management', key: 'menu', Icon: UtensilsCrossed },
+  { href: '/admin/inventory', label: 'Ingredients', key: 'inventory', Icon: Boxes },
   { href: '/admin/tables', label: 'Tables & floor', key: 'tables', Icon: TableProperties },
   { href: '/admin/staff', label: 'Team members', key: 'team', Icon: Users },
   { href: '/admin/reports', label: 'Sales reports', key: 'reports', Icon: BarChart3 },
@@ -49,7 +50,7 @@ export default function AdminSidebar({ user, previewView }: { user: { name: stri
       <div className="sidebar-location"><Store size={17} /><span>Main restaurant<small>Management workspace</small></span><ChevronDown size={13} /></div>
       <nav aria-label="Restaurant management"><div className="nav-section-label">Restaurant</div>{ADMIN_NAV.map(({ href,label,key,Icon },index) => {
         const active = previewView ? previewView === key : key === 'intelligence' ? pathname === href : pathname === href || pathname.startsWith(`${href}/`)
-        return <div key={href}>{index === 5 && <div className="nav-section-label" style={{ marginTop:25 }}>Management</div>}
+        return <div key={href}>{key === 'team' && <div className="nav-section-label" style={{ marginTop:25 }}>Management</div>}
           <Link href={previewView ? `/preview?view=${key}` : href} className={`app-nav-link ${active ? 'active' : ''}`} title={label} aria-current={active ? 'page' : undefined} onClick={() => setOpen(false)}>
             <Icon size={17} strokeWidth={1.7}/><span className="nav-label">{label}</span>{index === 0 && <ArrowUpRight size={12}/>}</Link>
           {key === 'intelligence' && inHelpDesk && <div className="help-desk-subnav">{helpLinks.map(({ page, Icon: PageIcon }) => {

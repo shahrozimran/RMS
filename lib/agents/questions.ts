@@ -33,7 +33,8 @@ export async function answerQuestion(question: string, sources: Citation[], mode
   if (!safeSources.length) return noEvidence
   if (!model) {
     const counts = safeSources.filter(source => source.id.startsWith('F-'))
-    const answer = counts.length ? counts.map(source => source.excerpt).join('\n') : 'I found these related records. Open the sources below to read the details.'
+    const answer = counts.length ? counts.map(source => source.id.startsWith('F-S-') || source.id.startsWith('F-Y-')
+      ? `${source.title}\n${source.excerpt}` : source.excerpt).join('\n').slice(0, 2400) : 'I found these related records. Open the sources below to read the details.'
     return { status: 'answered', answer, sources: safeSources, model: null }
   }
 

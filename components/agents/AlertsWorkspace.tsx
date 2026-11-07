@@ -119,6 +119,7 @@ export default function AlertsWorkspace({ admin = false, preview = false, issueI
           {view === 'inbox' && !alert.read_at && <button className="btn btn-secondary btn-sm" disabled={busy} onClick={() => void markRead(alert)}><Check size={14}/>Mark as read</button>}
           {admin && alert.issue_id && <Link className="btn btn-secondary btn-sm" href={helpDeskHref('issues', preview, { issue: alert.issue_id })}>Open issue</Link>}
           {admin && alert.kind === 'check_failed' && <Link className="btn btn-secondary btn-sm" href={helpDeskHref('checks', preview, { status: 'failed' })}>Open checks</Link>}
+          {admin && alert.kind === 'low_stock' && <Link className="btn btn-secondary btn-sm" href={preview ? '/preview?view=inventory' : '/admin/inventory'}>Open ingredients</Link>}
         </div>
       </article>) : <p className="muted">{view === 'sent' ? 'You have not sent any alerts yet.' : 'You have no alerts.'}</p>}</>)}
     </div>

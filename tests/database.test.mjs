@@ -16,6 +16,15 @@ const rpc = (name,args,casts) => scalar(`select public.${name}(${args.map((_,i)=
 const payload = (extra = {}) => ({ order_type: 'takeaway', items: [{ product_id: product, quantity: 1, unit_price: 10, tax_rate: 5 }], ...extra })
 const create = (actor = waiter, data = payload()) => rpc('save_order',[actor,JSON.stringify(data)],['uuid','jsonb'])
 const settle = (id,amount=10.5,extra={}) => rpc('settle_order',[waiter,id,JSON.stringify([{method:'cash',amount,cash_tendered:amount}]),extra.code??null,extra.discount??0],['uuid','uuid','jsonb','text','numeric'])
+const stockCount = async id => Number(await scalar('select quantity_available from public.ingredients where id=$1',[id]))
+
+async function legacyOrder(productId = product, quantity = 1) {
+  const orderId = await scalar("insert into public.orders(staff_id,order_type,status,subtotal,tax_amount,total) values($1,'takeaway','active',$2,$3,$4) returning id",
+    [waiter,10*quantity,0.5*quantity,10.5*quantity])
+  await query('insert into public.order_items(order_id,product_id,quantity,unit_price,tax_rate,tax_amount,subtotal) values($1,$2,$3,10,5,$4,$5)',
+    [orderId,productId,quantity,0.5*quantity,10*quantity])
+  return { id: orderId }
+}
 
 before(async () => {
   db = new PGlite({ extensions: { vector } })
@@ -88,14 +97,19 @@ test('settlement rejects underpayment, manual discounts, and insufficient tender
   assert.equal(await scalar('select status from public.orders where id=$1',[order.id]),'active')
   assert.equal(await scalar('select count(*)::int from public.payments where order_id=$1',[order.id]),0)
 })
-test('payment, stock deduction and low-stock alert commit once; replay is rejected',async()=>{
-  const order=await create()
-  const before=Number(await scalar('select quantity_available from public.ingredients where id=$1',[ingredient]))
+test('confirmation deducts stock once and payment does not deduct again',async()=>{
+  const before=await stockCount(ingredient)
+  const requestId=await scalar('select gen_random_uuid()')
+  const order=await create(waiter,payload({_request_id:requestId}))
+  assert.equal(await stockCount(ingredient),before-2)
+  assert.equal((await create(waiter,payload({_request_id:requestId}))).id,order.id)
+  await assert.rejects(create(waiter,payload({_request_id:requestId,notes:'Different order'})),/already used/)
   await settle(order.id)
-  assert.equal(Number(await scalar('select quantity_available from public.ingredients where id=$1',[ingredient])),before-2)
+  assert.equal(await stockCount(ingredient),before-2)
   await assert.rejects(settle(order.id),/already closed/)
   assert.equal(await scalar('select count(*)::int from public.payments where order_id=$1',[order.id]),1)
-  assert.ok(await scalar(`select count(*)::int from public.notifications where type='low_stock'`)>0)
+  assert.equal(await scalar("select count(*)::int from public.stock_transactions where reference_id=$1 and type='deduction'",[order.id]),1)
+  assert.ok(await scalar("select count(*)::int from public.team_alerts where recipient_id=$1 and kind='low_stock'",[admin])>0)
 })
 test('discount minimum, subtotal basis, use cap and failed-payment rollback',async()=>{
   await db.exec(`insert into public.discounts(code,type,value,min_order_amount,max_uses) values('TEST10','percentage',10,10,1),('TESTMIN','flat',2,50,null)`)
@@ -112,11 +126,15 @@ test('zero-total bills can settle without a fictitious positive payment',async()
   const result=await rpc('settle_order',[waiter,o.id,'[]','TESTFREE'],['uuid','uuid','jsonb','text'])
   assert.equal(result.total,0)
 })
-test('void restores recorded stock exactly once and does not manufacture stock on unpaid orders',async()=>{
+test('void restores confirmed stock exactly once, including unpaid tickets, and skips legacy undeducted tickets',async()=>{
+  const before=await stockCount(ingredient)
   const unpaid=await create(manager)
-  const before=Number(await scalar('select quantity_available from public.ingredients where id=$1',[ingredient]))
+  assert.equal(await stockCount(ingredient),before-2)
   await rpc('void_order',[unpaid.id,'Test cancellation',manager],['uuid','text','uuid'])
-  assert.equal(Number(await scalar('select quantity_available from public.ingredients where id=$1',[ingredient])),before)
+  assert.equal(await stockCount(ingredient),before)
+  const legacy=await legacyOrder()
+  await rpc('void_order',[legacy.id,'Legacy cancellation',admin],['uuid','text','uuid'])
+  assert.equal(await stockCount(ingredient),before)
   const paid=await create()
   await settle(paid.id)
   await assert.rejects(rpc('void_order',[paid.id,'No permission',waiter],['uuid','text','uuid']),/Permission denied/)
@@ -127,9 +145,12 @@ test('void restores recorded stock exactly once and does not manufacture stock o
 })
 test('QR confirmation is single-use, validates current catalog and races rejection on one parent',async()=>{
   const token=await scalar('select qr_token from public.tables where id=1')
+  const before=await stockCount(ingredient)
   const q=await rpc('submit_qr_order',[token,'Guest',JSON.stringify(payload().items)],['uuid','text','jsonb'])
+  assert.equal(await stockCount(ingredient),before)
   const o=await rpc('process_qr_order',[waiter,q.id,true],['uuid','uuid','boolean'])
   assert.equal(o.source,'qr')
+  assert.equal(await stockCount(ingredient),before-2)
   await assert.rejects(rpc('process_qr_order',[waiter,q.id,true],['uuid','uuid','boolean']),/already processed/)
   await assert.rejects(rpc('process_qr_order',[waiter,q.id,false],['uuid','uuid','boolean']),/already processed/)
   const q2=await rpc('submit_qr_order',[token,'Guest',JSON.stringify(payload().items)],['uuid','text','jsonb'])
@@ -175,20 +196,107 @@ test('products with variants cannot be purchased at a hidden base price',async()
   assert.equal((await create(waiter,payload({items:[{product_id:p,quantity:1,variant_label:'Large',unit_price:20,tax_rate:0}]}))).total,20)
 })
 test('ambiguous historical deductions block voiding without partially refunding',async()=>{
-  const o=await create()
+  const o=await legacyOrder()
   await db.query(`update public.orders set status='paid' where id=$1`,[o.id])
   await db.query(`insert into public.stock_transactions(ingredient_id,type,quantity,reference_id) values($1,'deduction',2,$2)`,[ingredient,o.id])
   await assert.rejects(rpc('void_order',[o.id,'Historical cancellation',admin],['uuid','text','uuid']),/require reconciliation/)
   assert.equal(await scalar('select status from public.orders where id=$1',[o.id]),'paid')
 })
-test('failed stock deduction rolls back payment and discount usage',async()=>{
-  const o=await create()
+test('older open orders still deduct at payment, with atomic rollback if stock is short',async()=>{
+  const o=await legacyOrder()
   const available=await scalar('select quantity_available from public.ingredients where id=$1',[ingredient])
   await db.query('update public.ingredients set quantity_available=0 where id=$1',[ingredient])
   await assert.rejects(settle(o.id),/Insufficient ingredient/)
   assert.equal(await scalar('select status from public.orders where id=$1',[o.id]),'active')
   assert.equal(await scalar('select count(*)::int from public.payments where order_id=$1',[o.id]),0)
   await db.query('update public.ingredients set quantity_available=$1 where id=$2',[available,ingredient])
+  await settle(o.id)
+  assert.equal(await stockCount(ingredient),Number(available)-2)
+})
+
+test('admin recipes share fractional stock, yield estimates update, and order edits honor recorded recipes', async () => {
+  const add = (actor,name,unit,count,threshold) => rpc('add_raw_ingredient',[actor,name,unit,count,threshold],['uuid','text','text','numeric','numeric'])
+  const saveRecipe = (actor,item,lines,previous = {}) => rpc('save_ingredient_recipe',[actor,item,JSON.stringify(lines),JSON.stringify(previous)],['uuid','uuid','jsonb','jsonb'])
+  const workspace = () => rpc('inventory_workspace',[admin],['uuid'])
+  await assert.rejects(add(waiter,'Shared chicken','kg',1,0.2),/Permission denied|Administrator access/)
+  await db.exec('set role authenticated')
+  try { await assert.rejects(workspace(),/permission denied/) }
+  finally { await db.exec('reset role') }
+  await assert.rejects(add(admin,'Shared chicken','kg',1.0005,0.2),/valid stock/)
+  const chicken = await add(admin,'Shared chicken','kg',1,0.2)
+  const sauce = await add(admin,'Pizza sauce','L',1,0.1)
+  await assert.rejects(add(admin,' shared chicken ','kg',2,0.2),/already exists/)
+  const pizza = await scalar("insert into public.products(name,base_price,tax_rate) values('Test Chicken Pizza',10,5) returning id")
+  const wrap = await scalar("insert into public.products(name,base_price,tax_rate) values('Test Chicken Wrap',10,5) returning id")
+  const pizzaRecipe = { [chicken]: 0.2, [sauce]: 0.1 }
+  await saveRecipe(admin,pizza,pizzaRecipe)
+  await saveRecipe(admin,wrap,{ [chicken]: 0.1 })
+  const opening = await workspace()
+  assert.equal(opening.products.find(p=>p.id===pizza).makeable,5)
+  assert.equal(opening.products.find(p=>p.id===wrap).makeable,10)
+  const count = opening.ingredients.find(i=>i.id===chicken)
+  const setCount = (quantity,at) => rpc('update_ingredient_stock',
+    [admin,chicken,quantity,0.2,at,'Counted after delivery'],['uuid','uuid','numeric','numeric','timestamptz','text'])
+  const items = (a,b) => [{product_id:pizza,quantity:a},{product_id:wrap,quantity:b}]
+  const order = await create(waiter,payload({items:items(2,3)}))
+  assert.equal(await stockCount(chicken),0.3)
+  assert.equal(await stockCount(sauce),0.8)
+  assert.equal((await workspace()).products.find(p=>p.id===pizza).makeable,1)
+  await assert.rejects(setCount(0.9,count.updated_at),/stock changed/)
+
+  const facts = await rpc('inventory_question_facts',[admin,'How many pizzas can we make?'],['uuid','text'])
+  const pizzaFact = facts.find(f=>f.title==='Test Chicken Pizza')
+  assert.match(pizzaFact.excerpt,/up to 1 of this dish/)
+  const answer = await answerQuestion('How many pizzas can we make?',facts,null,AbortSignal.timeout(5000))
+  assert.ok(answer.sources.some(f=>f.id===pizzaFact.id))
+  assert.match(answer.answer,/Test Chicken Pizza/)
+
+  await saveRecipe(admin,pizza,{[chicken]:0.5},pizzaRecipe)
+  await assert.rejects(saveRecipe(admin,pizza,{[chicken]:0.6},pizzaRecipe),/recipe changed/)
+  const edit = (a,b) => rpc('save_order',[waiter,JSON.stringify(payload({items:items(a,b)})),order.id],['uuid','jsonb','uuid'])
+  await assert.rejects(edit(4,3),/Insufficient ingredient stock/)
+  assert.equal(await stockCount(chicken),0.3)
+  assert.equal(await stockCount(sauce),0.8)
+  assert.equal(await scalar('select sum(quantity)::int from public.order_items where order_id=$1',[order.id]),5)
+  await edit(1,3)
+  await edit(1,3)
+  assert.equal(await stockCount(chicken),0.5)
+  assert.equal(await stockCount(sauce),0.9)
+  await settle(order.id,42)
+  assert.equal(await stockCount(chicken),0.5)
+  await rpc('void_order',[order.id,'Return unused ingredients',admin],['uuid','text','uuid'])
+  assert.equal(await stockCount(chicken),1)
+  assert.equal(await stockCount(sauce),1)
+  const after = await workspace()
+  await setCount(1.25,after.ingredients.find(i=>i.id===chicken).updated_at)
+  assert.equal(await stockCount(chicken),1.25)
+  assert.ok((await workspace()).history.some(h=>h.name==='Shared chicken' && h.quantity===0.25 && h.notes==='Counted after delivery'))
+})
+
+test('a shortage leaves no POS order and leaves a QR order pending until stock is updated', async () => {
+  const available=await stockCount(ingredient)
+  const token=await scalar('select qr_token from public.tables where id=3')
+  const pending=await rpc('submit_qr_order',[token,'Guest',JSON.stringify(payload().items)],['uuid','text','jsonb'])
+  const countOrders=()=>scalar('select count(*)::int from public.orders')
+  const before=await countOrders()
+  await query('update public.ingredients set quantity_available=0 where id=$1',[ingredient])
+  await assert.rejects(create(),/Insufficient ingredient stock/)
+  await assert.rejects(rpc('process_qr_order',[waiter,pending.id,true],['uuid','uuid','boolean']),/Insufficient ingredient stock/)
+  assert.equal(await countOrders(),before)
+  assert.equal(await scalar('select status from public.qr_pending_orders where id=$1',[pending.id]),'pending')
+  await query('update public.ingredients set quantity_available=$1 where id=$2',[available,ingredient])
+  await rpc('process_qr_order',[waiter,pending.id,true],['uuid','uuid','boolean'])
+  assert.equal(await stockCount(ingredient),available-2)
+})
+
+test('editing a legacy draft leaves its stock available until the order is settled', async () => {
+  const draft=await legacyOrder()
+  const before=await stockCount(ingredient)
+  await query("update public.orders set status='draft' where id=$1",[draft.id])
+  await rpc('save_order',[waiter,JSON.stringify(payload()),draft.id],['uuid','jsonb','uuid'])
+  assert.equal(await stockCount(ingredient),before)
+  await settle(draft.id)
+  assert.equal(await stockCount(ingredient),before-2)
 })
 test('logout revokes only the current token generation',async()=>{
   const version=await scalar('select session_version from public.users where id=$1',[waiter])
@@ -212,14 +320,15 @@ test('public QR projection returns restaurant name and excludes table capability
 
 
 // The new agent subsystem is tested only in this disposable database.
-async function agentOrder(stock=1) {
+async function agentOrder(stock=3, legacy=false) {
   const p=await scalar("insert into public.products(name,base_price,tax_rate) values('Agent test burger',10,5) returning id")
   const ingredient=await scalar("insert into public.ingredients(name,unit,quantity_available,reorder_threshold) values('Agent test buns','pieces',$1,2) returning id",[stock])
   await query('insert into public.product_ingredients(product_id,ingredient_id,quantity_used) values($1,$2,1)',[p,ingredient])
-  const order=await create(waiter,{order_type:'takeaway',items:[{product_id:p,quantity:2,unit_price:10,tax_rate:5}]})
+  const order=legacy ? await legacyOrder(p,2) : await create(waiter,{order_type:'takeaway',items:[{product_id:p,quantity:2,unit_price:10,tax_rate:5}]})
   return {order,ingredient,product:p}
 }
 async function claimFor(orderId) {
+  await rpc('refresh_ingredient_reviews',[])
   await query("update public.agent_jobs set available_at='2099-01-01' where status='pending' and order_id<>$1",[orderId])
   await query("update public.agent_jobs set available_at=now()-interval '1 second' where order_id=$1",[orderId])
   const job=await rpc('claim_agent_job',[])
@@ -255,7 +364,9 @@ test('order/item transaction creates one coalesced job and its snapshot excludes
   assert.equal(JSON.stringify(job).includes('+15551234567'),false)
   assert.equal(JSON.stringify(job).includes('private request'),false)
   assert.equal(job.context.ingredients[0].required,2)
-  assert.equal(job.context.ingredients[0].open_demand,2)
+  assert.equal(job.context.ingredients[0].open_demand,0)
+  assert.equal(job.context.order.stock_confirmed,true)
+  assert.equal(job.context.products[0].makeable,1)
   assert.ok(evaluateOrder(job).findings.some(f=>f.kind==='stock_pressure'))
   assert.equal(await finish(job),true)
   assert.equal(await finish(job),false)
@@ -460,7 +571,7 @@ test('a private staff alert is stored once and only its recipient can mark it re
 })
 
 test('urgent findings and exhausted checks create saved admin alerts', async () => {
-  const { order } = await agentOrder()
+  const { order } = await agentOrder(1,true)
   const job = await claimFor(order.id)
   assert.equal(await finish(job), true)
   const urgent = await scalar("select id from public.agent_recommendations where order_id=$1 and severity='high' limit 1", [order.id])
