@@ -3,10 +3,11 @@ import { cookies } from 'next/headers'
 import { createAdminClient, createServerSupabaseClient } from '@/lib/supabase/server'
 import { verifyStaffToken } from '@/lib/auth/staff-auth'
 import { apiError } from '@/lib/api/errors'
+import { authCookieOptions, staffCookieName } from '@/lib/auth/cookies'
 
 export async function POST() {
   try {
-    const token = (await cookies()).get('rms_staff_token')?.value
+    const token = (await cookies()).get(staffCookieName)?.value
     if (token) {
       let userId: string | undefined
       let version: number | undefined
@@ -21,7 +22,9 @@ export async function POST() {
     const { error } = await auth.auth.signOut()
     if (error) throw error
     const response = NextResponse.json({ success: true })
-    response.cookies.delete('rms_staff_token')
+    const expired = { ...authCookieOptions, httpOnly: true, maxAge: 0 }
+    response.cookies.set(staffCookieName, '', expired)
+    if (authCookieOptions.secure) response.cookies.set('rms_staff_token', '', expired)
     return response
   } catch (error) { return apiError(error) }
 }

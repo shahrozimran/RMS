@@ -28,7 +28,8 @@ for (const route of routes) {
 
 if (process.argv.includes('--database')) {
   const { createClient } = await import('@supabase/supabase-js')
-  const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+  const { supabaseUrl } = await import('../lib/supabase/connection.mjs')
+  const db = createClient(supabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL), process.env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   })
   const probes = {

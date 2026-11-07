@@ -1,17 +1,8 @@
-const cspHeader = `
-  default-src 'self';
-  script-src 'self' 'unsafe-inline' ${process.env.NODE_ENV === 'development' ? "'unsafe-eval'" : ''};
-  style-src 'self' 'unsafe-inline';
-  font-src 'self';
-  img-src 'self' data: https:;
-  media-src 'self' data:;
-  connect-src 'self' https://*.supabase.co wss://*.supabase.co;
-  frame-ancestors 'none';
-`.replace(/\s{2,}/g, ' ').trim()
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  poweredByHeader: false,
   images: {
+    maximumRedirects: 0,
     remotePatterns: [
       {
         protocol: 'https',
@@ -26,10 +17,6 @@ const nextConfig = {
         source: '/(.*)',
         headers: [
           {
-            key: 'Content-Security-Policy',
-            value: cspHeader,
-          },
-          {
             key: 'X-Frame-Options',
             value: 'DENY',
           },
@@ -39,7 +26,7 @@ const nextConfig = {
           },
           {
             key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin',
+            value: 'no-referrer',
           },
           {
             key: 'Strict-Transport-Security',

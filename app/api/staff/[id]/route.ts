@@ -58,13 +58,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (!parsed.success) return NextResponse.json({ error: 'Validation error', details: parsed.error.flatten() }, { status: 400 })
     const supabase = await createAdminClient()
     if (parsed.data.role_id !== undefined) {
-      const [{ data: role }, { data: target }] = await Promise.all([
-        supabase.from('roles').select('name').eq('id', parsed.data.role_id).single(),
-        supabase.from('users').select('auth_user_id').eq('id', resolvedParams.id).single(),
-      ])
-      if (!role || !target || (role.name === 'Admin' && !target.auth_user_id)) return NextResponse.json({ error: 'Administrator accounts require Supabase Auth provisioning' }, { status: 400 })
+      const { data: role } = await supabase.from('roles').select('name').eq('id', parsed.data.role_id).single()
+      if (!role || role.name === 'Admin') return NextResponse.json({ error: 'Administrator accounts require Supabase Auth provisioning' }, { status: 400 })
     }
-    const { data, error } = await supabase.from('users').update(parsed.data).eq('id', resolvedParams.id).select('id,name,username,status').single()
+    const { data, error } = await supabase.from('users').update(parsed.data).eq('id', resolvedParams.id).is('auth_user_id', null).select('id,name,username,status').single()
     if (error) throw error
     await supabase.from('activity_logs').insert({
       user_id: session?.id, action: 'UPDATE_STAFF', entity_type: 'user', entity_id: resolvedParams.id,
@@ -80,7 +77,7 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
     requirePermission(session, 'staff', 'delete')
     const supabase = await createAdminClient()
     const resolvedParams = await params
-    const { error: deleteError } = await supabase.from('users').update({ status: 'deleted' }).eq('id', resolvedParams.id).select('id').single()
+    const { error: deleteError } = await supabase.from('users').update({ status: 'deleted' }).eq('id', resolvedParams.id).is('auth_user_id', null).select('id').single()
     if (deleteError) throw deleteError
     await supabase.from('activity_logs').insert({
       user_id: session?.id, action: 'DELETE_STAFF', entity_type: 'user', entity_id: resolvedParams.id,

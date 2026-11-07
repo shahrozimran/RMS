@@ -4,12 +4,13 @@ import { jobSchema } from '../lib/agents/contracts.ts'
 import { createOpenRouter, hasOpenRouterKey } from '../lib/agents/openrouter.ts'
 import { operationsFactsSchema } from '../lib/agents/rag-contracts.ts'
 import { retrieveRoleKnowledge, runAiReview } from '../lib/agents/rag.ts'
+import { supabaseUrl } from '../lib/supabase/connection.mjs'
 
 // Run with Node.js 24. Credentials are loaded by --env-file, never logged.
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (!url || !key) { console.error('Configure the RMS server environment before starting the agent worker.'); process.exit(1) }
-const db = createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}})
+const db = createClient(supabaseUrl(url),key,{auth:{persistSession:false,autoRefreshToken:false}})
 const model = createOpenRouter()
 const once = process.argv.includes('--once')
 let stopping = false

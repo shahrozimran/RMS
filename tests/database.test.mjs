@@ -72,6 +72,47 @@ test('authenticated browser cannot bypass financial transaction APIs',async()=>{
     await assert.rejects(query(`select public.void_order(gen_random_uuid(),'reason',gen_random_uuid())`),/permission denied/)
   } finally { await db.exec('reset role') }
 })
+
+test('direct browser grants hide staff verifiers, prevent account mutations and preserve administrator order joins',async()=>{
+  const authId=await scalar('select auth_user_id from public.users where id=$1',[admin])
+  const unlinked=await scalar('insert into auth.users values(gen_random_uuid()) returning id')
+  const demotedIdentity=await scalar('insert into auth.users values(gen_random_uuid()) returning id')
+  const demoted=await scalar("insert into public.users(name,username,role_id,auth_user_id) values('Former admin','test_demoted',3,$1) returning id",[demotedIdentity])
+  const historic=await scalar("insert into public.orders(staff_id,order_type,status,total) values($1,'takeaway','paid',10) returning id",[demoted])
+  await db.exec('set role authenticated')
+  try{
+    await query("select set_config('request.jwt.claim.sub',$1,false)",[unlinked])
+    assert.equal(await scalar('select count(id)::int from public.products'),0)
+    await assert.rejects(query('select code from public.discounts'),/permission denied/)
+    await assert.rejects(query('select customer_name from public.qr_pending_orders'),/permission denied/)
+    await query("select set_config('request.jwt.claim.sub',$1,false)",[demotedIdentity])
+    assert.equal(await scalar('select count(*)::int from public.orders where id=$1',[historic]),0)
+    await query("select set_config('request.jwt.claim.sub',$1,false)",[authId])
+    assert.equal(await scalar('select count(*)::int from public.orders where id=$1',[historic]),1)
+    assert.equal(await scalar('select name from public.products where id=$1',[product]),'Test meal')
+    assert.equal(await scalar('select name from public.users where id=$1',[waiter]),'Waiter')
+    await assert.rejects(query('select password_hash from public.users where id=$1',[waiter]),/permission denied/)
+    await assert.rejects(query("update public.users set auth_user_id=$1 where id=$2",[unlinked,admin]),/permission denied/)
+    await assert.rejects(query("update public.roles set permissions='{}'"),/permission denied/)
+  }finally{await db.exec("reset role; select set_config('request.jwt.claim.sub','',false)")}
+})
+
+test('password failures pause new attempts without invalidating existing staff sessions',async()=>{
+  const staff=await scalar("insert into public.users(name,username,role_id,password_hash) values('Staff','security_lockout_fixture',3,'fixture-hash') returning id")
+  const login=(ok)=>rpc('record_staff_login',[staff,ok,'fixture-hash'],['uuid','boolean','text'])
+  assert.equal(await login(true),0)
+  for(let i=0;i<5;i++) assert.equal(await login(false),null)
+  const [row]=await query('select status,session_version,locked_until from public.users where id=$1',[staff])
+  assert.equal(row.status,'active')
+  assert.equal(row.session_version,0)
+  assert.ok(row.locked_until)
+  assert.equal(await login(true),null)
+  await query("update public.users set locked_until=now()-interval '1 minute' where id=$1",[staff])
+  assert.equal(await login(true),0)
+  for(let i=0;i<5;i++) await login(false)
+  await query("update public.users set password_hash='new-fixture-hash' where id=$1",[staff])
+  assert.equal(await rpc('record_staff_login',[staff,true,'new-fixture-hash'],['uuid','boolean','text']),1)
+})
 test('authoritative pricing rejects zero-price and foreign/duplicate modifiers; persists trusted modifiers',async()=>{
   await assert.rejects(create(waiter,payload({items:[{product_id:product,quantity:1,unit_price:0,tax_rate:5}]})),/price changed/)
   await assert.rejects(create(waiter,payload({items:[{product_id:product,quantity:1,unit_price:12,tax_rate:0,selected_modifiers:[{id:modifier}]}]})),/price changed/)
@@ -142,6 +183,22 @@ test('void restores confirmed stock exactly once, including unpaid tickets, and 
   assert.equal(Number(await scalar('select quantity_available from public.ingredients where id=$1',[ingredient])),before)
   await assert.rejects(rpc('void_order',[paid.id,'Duplicate cancellation',admin],['uuid','text','uuid']),/already closed/)
   await assert.rejects(settle(paid.id),/already closed/)
+})
+
+test('manager void permission does not authorize refunding their own paid order',async()=>{
+  const order=await create(manager)
+  await rpc('settle_order',[manager,order.id,JSON.stringify([{method:'cash',amount:10.5,cash_tendered:10.5}])],['uuid','uuid','jsonb'])
+  const before=await stockCount(ingredient)
+  await assert.rejects(rpc('void_order',[order.id,'Manager refund attempt',manager],['uuid','text','uuid']),/Permission denied/)
+  assert.equal(await scalar('select status from public.orders where id=$1',[order.id]),'paid')
+  assert.equal(await scalar('select status from public.payments where order_id=$1',[order.id]),'completed')
+  assert.equal(await stockCount(ingredient),before)
+  // Historical mismatches must also protect the payment row itself.
+  await query("update public.orders set status='active' where id=$1",[order.id])
+  await assert.rejects(rpc('void_order',[order.id,'Manager refund attempt',manager],['uuid','text','uuid']),/Permission denied/)
+  assert.equal(await scalar('select status from public.payments where order_id=$1',[order.id]),'completed')
+  await rpc('void_order',[order.id,'Authorized admin refund',admin],['uuid','text','uuid'])
+  assert.equal(await scalar('select status from public.payments where order_id=$1',[order.id]),'refunded')
 })
 test('QR confirmation is single-use, validates current catalog and races rejection on one parent',async()=>{
   const token=await scalar('select qr_token from public.tables where id=1')

@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import { orderItemSchema } from '@/lib/utils/validation'
 import { apiError } from '@/lib/api/errors'
-import { clientKey, rateLimit } from '@/lib/api/rate-limit'
+import { publicClientIp, rateLimit, rateLimitIdentity } from '@/lib/api/rate-limit'
 
 const schema = z.object({
   customer_name: z.string().trim().min(1).max(50),
@@ -14,7 +14,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try {
     const { tableToken } = await params
     if (!z.uuid().safeParse(tableToken).success) return NextResponse.json({ error: 'Invalid QR code' }, { status: 404 })
-    await rateLimit('qr-submit:' + clientKey(request), 100, 600)
+    const ip = publicClientIp(request)
+    if (ip) await rateLimit('qr-submit:ip:' + rateLimitIdentity(ip), 100, 600)
+    // The database also caps submissions by table after verifying the QR token.
     const parsed = schema.safeParse(await readJson(request))
     if (!parsed.success) return NextResponse.json({ error: 'Invalid order', details: parsed.error.flatten() }, { status: 400 })
     const db = await createAdminClient()
@@ -29,11 +31,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const pendingId = request.nextUrl.searchParams.get('pendingId')
     if (!z.uuid().safeParse(tableToken).success || !z.uuid().safeParse(pendingId).success) return NextResponse.json({ error: 'Invalid order reference' }, { status: 400 })
     // Polling has its own budget, sized for shared restaurant Wi-Fi.
-    await rateLimit('qr-status:' + clientKey(request), 1000, 60)
+    const ip = publicClientIp(request)
+    if (ip) await rateLimit('qr-status:ip:' + rateLimitIdentity(ip), 1000, 60)
     const db = await createAdminClient()
     const { data, error } = await db.from('qr_pending_orders').select('id,status,confirmed_order_id,created_at')
       .eq('id', pendingId!).eq('table_token', tableToken).single()
     if (error || !data) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    if (!ip) await rateLimit('qr-status:order:' + rateLimitIdentity(data.id), 100, 60)
     return NextResponse.json({ data })
   } catch (error) { return apiError(error) }
 }
