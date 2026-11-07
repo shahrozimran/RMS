@@ -1,0 +1,35 @@
+# AI and the knowledge library
+
+The administrator Intelligence workspace combines a rule review with a separate AI briefing. The worker claims an open order from the existing durable queue and gathers a bounded snapshot of its menu, recipes, stock, kitchen queue, shifts, table status and recent paid-order history. Document retrieval combines pgvector similarity with keyword matches. Each role receives up to two relevant excerpts.
+
+1. Order, Inventory and Sales evaluate their sources.
+2. Kitchen, Staff and Dining Floor receive the first three handoffs alongside their own facts and policy excerpts.
+3. The Supervisor combines the six handoffs and cites the sources behind its suggested checks.
+
+The worker batches the seven roles into three structured Gemini requests. It validates role identities, response size and citations before saving. The model has no database tools or business write access. The existing rules still publish when AI is paused, the allowance is exhausted, the provider fails or its output cannot be validated. Archived documents are removed from retrieval. Previous briefings retain their cited excerpts for review history.
+
+## Open the local preview
+
+Run `npm run dev` and open `http://127.0.0.1:3000/preview?view=intelligence`. Expand the supervisor briefing to see six specialist handoffs and their evidence. The Knowledge library tab accepts sample text and demonstrates indexing controls. This preview uses synthetic restaurant data.
+
+Other preview views include `?view=pos`, `?view=dashboard`, `?view=menu` and `?view=customer`.
+
+## Enable live reviews
+
+1. Apply `supabase/migrations/015_agent_rag.sql` in Supabase after migration 014. It installs pgvector, private knowledge tables and the AI review RPCs. It starts AI reviews paused.
+2. Set the server-only `OPENROUTER_API_KEY` in `.env.local` for development. For a hosted deployment, set it on the web server and the separate worker host. Use `npm run agents:verify` to test the provider with synthetic facts and no database writes. This makes real, small billable model requests.
+3. Deploy the application and start `npm run agents:worker` on a managed Node.js 24 host with the existing Supabase server credentials. `npm run agents:once` processes one available job. Use the worker logs to check completions and fixed error codes.
+4. Sign in as an administrator, open **Intelligence → Knowledge library** and index a UTF-8 text or Markdown policy. Choose a retrieval scope and approve sending the policy to OpenRouter. Excerpts cited by one role can appear in its downstream handoffs. Convert PDF policies to text before importing them.
+5. Enable AI reviews in the library. In **Review desk**, enable order reviews and choose **Review open orders**. The worker also picks up supported order and stock changes while order reviews are enabled.
+
+## Spending and data limits
+
+Gemini 3.1 Flash Lite is listed at $0.25 per million input tokens and $1.50 per million output tokens. Gemini Embedding 001 is listed at $0.15 per million input tokens. An example review with 10,000 generation input tokens, 1,500 output tokens and 1,000 embedding input tokens costs about half a US cent at those rates. Actual usage varies. [Generation pricing](https://openrouter.ai/google/gemini-3.1-flash-lite) · [Embedding pricing](https://openrouter.ai/google/gemini-embedding-001)
+
+The worker reserves up to 30 AI attempts per UTC day. Each run has a 43-second workflow timeout and three bounded generation calls. Indexing has a separate administrator rate limit. The library supports 100 active documents and up to 36,000 characters per import. Requests use provider data-collection restrictions and zero data retention routing. [OpenRouter routing controls](https://openrouter.ai/docs/guides/routing/provider-selection)
+
+Customer names, addresses, phone fields, order notes and employee identities are absent from the AI snapshot. Imported documents are operator-approved. Remove confidential content before indexing. Sources are treated as untrusted text, and citation IDs are checked against the retrieved excerpts and facts.
+
+Kitchen advice uses open tickets and current stock evidence. Staffing uses shifts and order counts. Floor advice uses table status and capacity. Station progress, staff skills, waitlists and actual turnover times need dedicated records for precise scheduling. The shared source map follows RMS entities and relationships in SQL. A live RDF reasoner and automatic business actions are outside this workflow.
+
+Run `npm test`, `npm run typecheck` and `npm run build` before release. The database tests install all migrations in disposable PGlite and exercise real vector retrieval and queue persistence with simulated provider responses.

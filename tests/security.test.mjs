@@ -131,6 +131,9 @@ test('agent APIs require a Supabase-backed administrator before privileged reads
     assert.equal((await route.POST(new Request('https://rms.test/api/agents',{method:'POST',body:'{"action":"queue"}'}))).status,expected)
     const review=load('app/api/agents/recommendations/[id]/route.ts',mocks)
     assert.equal((await review.POST(new Request('https://rms.test/api/agents/recommendations/x',{method:'POST',body:'{}'}),{params:Promise.resolve({id:'x'})})).status,expected)
+    const knowledge=load('app/api/agents/knowledge/route.ts',mocks)
+    assert.equal((await knowledge.GET()).status,expected)
+    assert.equal((await knowledge.POST(new Request('https://rms.test/api/agents/knowledge',{method:'POST',body:'{"action":"import"}'}))).status,expected)
     assert.equal(privilegedCalls,0)
   }
 })

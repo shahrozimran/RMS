@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { AiReview } from './rag-contracts.ts'
 
 const amount = z.number().finite()
 export const contextSchema = z.object({
@@ -57,6 +58,7 @@ export type Recommendation = Finding & {
 export type Run = {
   id: string; order_id: string; summary: string; policy_version: string;
   messages: AgentOutput['messages']; created_at: string;
+  ai_review?: AiReview | null;
 }
 export type AgentOverview = {
   enabled: boolean; setupRequired: boolean; recommendations: Recommendation[]; runs: Run[];

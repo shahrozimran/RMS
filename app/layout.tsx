@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import './workspace.css'
+import './theme.css'
 import ServiceWorker from '@/components/ServiceWorker'
 import { Inter, Plus_Jakarta_Sans } from 'next/font/google'
 
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport = {
-  themeColor: '#205e41',
+  themeColor: '#171913',
   width: 'device-width',
   initialScale: 1,
 }

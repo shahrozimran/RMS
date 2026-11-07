@@ -3,3 +3,52 @@
 @media(max-width:700px){.intel-summary{flex-direction:column;padding:22px;gap:22px}.intel-summary>div{flex-direction:column;gap:15px}.intel-summary h2{font-size:23px}.intel-tags{gap:12px}.intel-agent-panel{display:block}.intel-messages{grid-template-columns:1fr}.intel-findings{padding:0 14px 16px}.intel-finding{padding:17px}.intel-filter{padding-inline:14px}.intel-modal{padding:22px}.intel-modal-actions>.btn{width:100%}}
 
 .intel-modal{margin:auto}.intel-modal::backdrop{background:#102c22a8;backdrop-filter:blur(4px)}
+.intelligence-tabs { margin: 0; }
+.intel-summary {
+  background: linear-gradient(120deg, var(--midnight), var(--midnight-raised));
+  border-color: #39422c;
+  color: var(--surface);
+}
+.intel-summary h2 { color: var(--surface); }
+.intel-summary .eyebrow, .intel-symbol { color: var(--olive-spark); }
+.intel-symbol { background: #343e27; }
+.intel-summary p, .intel-tags > span { color: #d1d8bd; }
+.intel-summary .btn-secondary { background: var(--olive-spark); border-color: var(--olive-spark); color: var(--midnight); }
+.intel-finding, .intel-messages > div { background: var(--surface-raised); border-color: var(--border); }
+.intel-finding > p, .intel-finding li p, .intel-agent p, .intel-runs details > p { color: var(--charcoal-soft); }
+.intel-agent, .intel-runs > details, .intel-finding details { border-color: var(--border); }
+.intel-scope { background: var(--accent-bg); color: var(--accent-dark); }
+.knowledge-library { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr); gap: 22px; align-items: start; }
+.knowledge-body { padding: 0 23px 23px; }
+.knowledge-form, .knowledge-list { display: grid; gap: 16px; }
+.knowledge-form-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+.knowledge-form .input-group { margin: 0; }
+.knowledge-form > .btn { justify-self: start; }
+.knowledge-mode { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: var(--accent-bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 18px; }
+.knowledge-mode strong, .knowledge-mode small, .knowledge-doc small { display: block; margin-top: 6px; }
+.knowledge-mode small, .knowledge-doc small { color: var(--charcoal-soft); font-size: 11px; }
+.knowledge-consent { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; color: var(--charcoal-mid); line-height: 1.6; }
+.knowledge-consent input { margin-top: 3px; width: 16px; height: 16px; flex-shrink: 0; accent-color: var(--accent); }
+.knowledge-doc { display: flex; gap: 12px; align-items: flex-start; padding: 15px; background: var(--surface-raised); border: 1px solid var(--border); border-radius: 10px; }
+.knowledge-doc > svg { color: var(--accent); flex-shrink: 0; }
+.knowledge-doc > div { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.rag-supervisor { margin: 0 23px 18px; padding: 19px; background: var(--accent-bg); border-left: 3px solid var(--accent); border-radius: 8px; }
+.rag-supervisor p { margin-top: 6px; color: var(--charcoal-mid); }
+.rag-specialists { margin: 0 23px 20px; }
+.rag-specialists > summary, .rag-sources summary { cursor: pointer; display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 13px 0; font-weight: 650; color: var(--accent-dark); }
+.rag-insight-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.rag-insight-grid article { border: 1px solid var(--border); background: var(--surface-raised); border-radius: 10px; padding: 15px; overflow-wrap: anywhere; }
+.rag-insight-grid h3 { font-size: 13px; }
+.rag-insight-grid p, .rag-sources p { font-size: 12px; margin-top: 9px; color: var(--charcoal-mid); }
+.rag-insight-grid small { display: block; margin-top: 10px; font-size: 10px; color: var(--accent-dark); }
+.rag-sources { margin-top: 18px; }
+.rag-sources h3 { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.rag-sources details { border-top: 1px solid var(--border); margin-top: 7px; }
+.rag-sources p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0 0 10px; }
+@media (max-width: 1050px) { .rag-insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) {
+  .knowledge-library, .knowledge-form-row, .rag-insight-grid { grid-template-columns: 1fr; }
+  .knowledge-mode { align-items: flex-start; flex-direction: column; }
+  .knowledge-body { padding-inline: 16px; }
+  .rag-supervisor, .rag-specialists { margin-inline: 16px; }
+}

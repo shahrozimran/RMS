@@ -1,5 +1,7 @@
 # Operations intelligence: first implementation
 
+For the current seven-role AI workflow and setup, see [AI and the knowledge library](AGENT_RAG.md). This page describes the original rule engine that still powers the order and stock checks.
+
 This increment implements an advisory Order + Inventory + Supervisor workflow inside the existing RMS. It is the foundation of the seven-agent academic proposal.
 
 ## Implemented

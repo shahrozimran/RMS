@@ -2,7 +2,11 @@ import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile, readdir } from 'node:fs/promises'
 import { PGlite } from '@electric-sql/pglite'
+import { vector } from '@electric-sql/pglite-pgvector'
 import { evaluateOrder } from '../lib/agents/engine.ts'
+import { createOpenRouter } from '../lib/agents/openrouter.ts'
+import { retrieveRoleKnowledge, runAiReview } from '../lib/agents/rag.ts'
+import { operationsFactsSchema } from '../lib/agents/rag-contracts.ts'
 
 let db, admin, waiter, manager, product, modifier, ingredient
 const query = async (sql, args = []) => (await db.query(sql, args)).rows
@@ -13,7 +17,7 @@ const create = (actor = waiter, data = payload()) => rpc('save_order',[actor,JSO
 const settle = (id,amount=10.5,extra={}) => rpc('settle_order',[waiter,id,JSON.stringify([{method:'cash',amount,cash_tendered:amount}]),extra.code??null,extra.discount??0],['uuid','uuid','jsonb','text','numeric'])
 
 before(async () => {
-  db = new PGlite()
+  db = new PGlite({ extensions: { vector } })
   await db.exec(`create role anon; create role authenticated; create role service_role bypassrls;
     create schema auth; create table auth.users(id uuid primary key);
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
@@ -332,4 +336,99 @@ test('rolled-back business transactions cannot leave durable agent jobs behind',
     assert.equal(await scalar('select count(*)::int from public.agent_jobs where order_id=$1',[id]),1)
   }finally{await db.exec('ROLLBACK')}
   assert.equal(await scalar('select count(*)::int from public.agent_jobs where order_id=$1',[id]),0)
+})
+
+const embedding = Array.from({ length: 768 }, (_, index) => index === 0 ? 1 : 0)
+const knowledge = (actor, scope, digest, body) => rpc('import_agent_knowledge',
+  [actor, 'Test policy', scope, digest.repeat(64), JSON.stringify([{ body, embedding }])], ['uuid','text','text','text','jsonb'])
+const searchKnowledge = queries => rpc('search_agent_knowledge', [JSON.stringify(queries)], ['jsonb'])
+const enableAi = enabled => rpc('set_agent_rag_enabled', [admin, enabled], ['uuid','boolean'])
+const prepareAi = (job, key) => rpc('prepare_agent_ai_review', [job.id, job.lease_token, job.generation, key], ['uuid','uuid','integer','boolean'])
+const completeAi = (job, revision, review) => rpc('complete_agent_ai_job',
+  [job.id, job.lease_token, job.generation, job.context_hash, JSON.stringify(evaluateOrder(job)), revision, JSON.stringify(review)],
+  ['uuid','uuid','integer','text','jsonb','integer','jsonb'])
+
+test('private pgvector search respects role scope and excludes archived content', async () => {
+  assert.equal(await scalar('select enabled from public.agent_rag_control'), false)
+  await assert.rejects(enableAi(true), /Add a knowledge document/)
+  await assert.rejects(knowledge(waiter, 'inventory', 'a', 'Check the physical stock count.'), /Admin required|Permission denied/)
+  const document = await knowledge(admin, 'inventory', 'a', 'Check the physical stock count when buns run low.')
+  await assert.rejects(knowledge(admin, 'inventory', 'a', 'Check the physical stock count when buns run low.'), /duplicate key/)
+  const hits = await searchKnowledge([
+    { role: 'inventory', terms: 'stock', embedding },
+    { role: 'tables', terms: 'stock', embedding },
+  ])
+  assert.equal(hits.length, 1)
+  assert.equal(hits[0].document_id, document)
+  assert.equal(hits[0].role, 'inventory')
+  await db.exec('set role authenticated')
+  try {
+    await assert.rejects(query('select body from public.agent_knowledge_chunks'), /permission denied/)
+    await assert.rejects(searchKnowledge([{ role: 'inventory', terms: 'stock', embedding }]), /permission denied/)
+  } finally { await db.exec('reset role') }
+  assert.equal(await rpc('archive_agent_knowledge', [admin, document], ['uuid','uuid']), true)
+  assert.deepEqual(await searchKnowledge([{ role: 'inventory', terms: 'stock', embedding }]), [])
+})
+
+test('one leased AI review retrieves cited policies and persists all seven validated handoffs', async () => {
+  await knowledge(admin, 'all', 'b', 'Verify the physical stock count before promising an alternative dish.')
+  await enableAi(true)
+  const { order, ingredient } = await agentOrder()
+  await query("update public.orders set customer_name='Private Customer',notes='Do not transmit this note' where id=$1", [order.id])
+  const job = await claimFor(order.id)
+  assert.equal((await prepareAi(job, false)).status, 'key_missing')
+  assert.equal(await scalar('select used from public.agent_rag_control'), 0)
+  const prepared = await prepareAi(job, true)
+  assert.equal(prepared.status, 'ready')
+  const facts = operationsFactsSchema.parse(prepared.facts)
+  const handoffLengths = []
+  const model = createOpenRouter('fixture-only-key', async (url, init) => {
+    const request = JSON.parse(init.body)
+    assert.equal(request.provider.data_collection, 'deny')
+    assert.equal(request.provider.zdr, true)
+    assert.doesNotMatch(init.body, /Private Customer|Do not transmit this note|fixture-only-key/)
+    if (url.endsWith('/embeddings')) {
+      assert.equal(request.dimensions, 768)
+      return Response.json({ data: request.input.map((_, index) => ({ index, embedding })) })
+    }
+    const { tasks, handoff } = JSON.parse(request.messages[1].content)
+    handoffLengths.push(handoff.length)
+    assert.equal(request.response_format.type, 'json_schema')
+    assert.equal('tools' in request, false)
+    const results = tasks.map(task => ({ role: task.role, status: 'attention', observation: 'Check the captured facts.',
+      suggestion: 'Have the duty lead verify the source.', sourceIds: task.sources.map(source => source.id) }))
+    return Response.json({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ results }) } }] })
+  })
+  const signal = AbortSignal.timeout(5000)
+  const hits = await retrieveRoleKnowledge(job, model, searchKnowledge, signal)
+  assert.equal(hits.length, 7)
+  const ai = await runAiReview(job, facts, hits, model, signal)
+  assert.deepEqual(handoffLengths, [0, 3, 6])
+  assert.equal(new Set(ai.agents.map(agent => agent.role)).size, 7)
+  assert.ok(ai.sources.some(source => source.kind === 'document' && source.chunk === 1))
+  assert.equal(await completeAi(job, prepared.revision, ai), true)
+  assert.equal(await completeAi(job, prepared.revision, ai), false)
+  assert.equal((await scalar('select ai_review from public.agent_runs where job_id=$1',[job.id])).agents.length, 7)
+  assert.equal(await scalar('select status from public.orders where id=$1',[order.id]), 'active')
+  assert.equal(Number(await scalar('select quantity_available from public.ingredients where id=$1',[ingredient])), 1)
+
+  const bogusModel = { ...model, complete: async request => ({ results: request.data.tasks.map(task => ({
+    role: task.role, status: 'attention', observation: 'Unverified claim', suggestion: 'Invalid citation', sourceIds: ['invented'],
+  })) }) }
+  await assert.rejects(runAiReview(job, facts, hits, bogusModel, signal), /UNGROUNDED_AGENT_RESULT/)
+})
+
+test('AI budget and knowledge revision changes preserve rules without publishing obsolete AI results', async () => {
+  const { order } = await agentOrder()
+  const job = await claimFor(order.id)
+  await query('update public.agent_rag_control set used=30')
+  assert.equal((await prepareAi(job, true)).status, 'budget_reached')
+  await query('update public.agent_rag_control set used=0')
+  const prepared = await prepareAi(job, true)
+  assert.equal(prepared.status, 'ready')
+  await enableAi(false)
+  const prior = await scalar("select ai_review from public.agent_runs where ai_review->>'status'='completed' limit 1")
+  assert.equal(await completeAi(job, prepared.revision, prior), true)
+  assert.deepEqual(await scalar('select ai_review from public.agent_runs where job_id=$1',[job.id]),
+    { status: 'fallback', reason: 'knowledge_changed' })
 })
