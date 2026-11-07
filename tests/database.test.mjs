@@ -7,6 +7,7 @@ import { evaluateOrder } from '../lib/agents/engine.ts'
 import { createOpenRouter } from '../lib/agents/openrouter.ts'
 import { retrieveRoleKnowledge, runAiReview } from '../lib/agents/rag.ts'
 import { operationsFactsSchema } from '../lib/agents/rag-contracts.ts'
+import { answerQuestion, questionSource } from '../lib/agents/questions.ts'
 
 let db, admin, waiter, manager, product, modifier, ingredient
 const query = async (sql, args = []) => (await db.query(sql, args)).rows
@@ -431,4 +432,69 @@ test('AI budget and knowledge revision changes preserve rules without publishing
   assert.equal(await completeAi(job, prepared.revision, prior), true)
   assert.deepEqual(await scalar('select ai_review from public.agent_runs where job_id=$1',[job.id]),
     { status: 'fallback', reason: 'knowledge_changed' })
+})
+
+test('a private staff alert is stored once and only its recipient can mark it read', async () => {
+  const id = await scalar('select gen_random_uuid()')
+  const send = (actor, recipient = waiter, message = 'Confirm the stock count.') => rpc('send_team_alert',
+    [actor, id, recipient, 'Check stock', message, null], ['uuid','uuid','uuid','text','text','uuid'])
+  await assert.rejects(send(waiter), /Administrator access required|Permission denied/)
+  await assert.rejects(send(admin, admin), /active team member/)
+  assert.equal(await send(admin), id)
+  assert.equal(await send(admin), id)
+  await assert.rejects(send(admin, waiter, 'A different message'), /already used/)
+  assert.equal(await scalar('select count(*)::int from public.activity_logs where action=\'TEAM_ALERT_SENT\' and entity_id=$1', [id]), 1)
+  const read = actor => rpc('read_team_alert', [actor, id], ['uuid','uuid'])
+  const otherStaff = await scalar("insert into public.users(name,username,role_id,password_hash) values('Other staff','alert_test_staff',3,'test-hash') returning id")
+  await assert.rejects(read(otherStaff), /Alert not found/)
+  await assert.rejects(read(admin), /Alert not found/)
+  const readAt = await read(waiter)
+  assert.ok(readAt)
+  assert.deepEqual(await read(waiter), readAt)
+  assert.equal(await scalar('select recipient_id from public.team_alerts where id=$1',[id]), waiter)
+  await db.exec('set role authenticated')
+  try {
+    await assert.rejects(query('select message from public.team_alerts'), /permission denied/)
+    await assert.rejects(read(waiter), /permission denied/)
+  } finally { await db.exec('reset role') }
+})
+
+test('urgent findings and exhausted checks create saved admin alerts', async () => {
+  const { order } = await agentOrder()
+  const job = await claimFor(order.id)
+  assert.equal(await finish(job), true)
+  const urgent = await scalar("select id from public.agent_recommendations where order_id=$1 and severity='high' limit 1", [order.id])
+  assert.ok(urgent)
+  assert.equal(await scalar("select count(*)::int from public.team_alerts where recipient_id=$1 and issue_id=$2 and kind='issue'", [admin, urgent]), 1)
+  assert.equal(await scalar('select count(*)::int from public.team_alerts where recipient_id=$1 and issue_id=$2', [waiter, urgent]), 0)
+  await query("update public.agent_jobs set status='dead' where id=$1", [job.id])
+  await query("update public.agent_jobs set status='dead' where id=$1", [job.id])
+  assert.equal(await scalar("select count(*)::int from public.team_alerts where recipient_id=$1 and system_ref=$2 and kind='check_failed'", [admin, `check:${job.id}:${job.generation}`]), 1)
+})
+
+test('question lookup finds live facts and saved policies, rejects forged citations and stores cited history', async () => {
+  const policy = await knowledge(admin, 'all', 'c', 'If the espresso grinder jams, switch it off and ask the duty lead to check it.')
+  const facts = (actor, question) => rpc('help_desk_question_facts', [actor, question], ['uuid','text'])
+  await assert.rejects(facts(waiter, 'What if the grinder jams?'), /Administrator access required|Permission denied/)
+  const question = 'What if the espresso grinder jams?'
+  const sources = (await facts(admin, question)).map(source => questionSource.parse(source))
+  const cited = sources.find(source => source.documentId === policy)
+  assert.ok(cited)
+  assert.ok((await facts(admin, 'How many orders are open?')).some(source => source.id === 'F-open-orders'))
+  const signal = AbortSignal.timeout(5000)
+  assert.equal((await answerQuestion(question, sources, null, signal)).status, 'answered')
+  assert.equal((await answerQuestion('unmatched', [], null, signal)).status, 'no_evidence')
+  await assert.rejects(answerQuestion(question, sources, { complete: async () => ({ status:'answered', answer:'Unsupported', sourceIds:['invented'] }) }, signal), /UNGROUNDED_ANSWER/)
+  const result = await answerQuestion(question, sources, { complete: async () => ({ status:'answered', answer:'Switch it off and ask the duty lead to check it.', sourceIds:[cited.id] }) }, signal)
+  const id = await scalar('insert into public.agent_questions(asked_by,question,status,answer,sources,model,finished_at) values($1,$2,$3,$4,$5::jsonb,$6,now()) returning id',
+    [admin, question, result.status, result.answer, JSON.stringify(result.sources), result.model])
+  const [stored] = await query('select question,answer,sources from public.agent_questions where id=$1 and asked_by=$2', [id, admin])
+  assert.equal(stored.question, question)
+  assert.equal(stored.answer, result.answer)
+  assert.deepEqual(stored.sources, result.sources)
+  await db.exec('set role authenticated')
+  try { await assert.rejects(query('select question from public.agent_questions'), /permission denied/) }
+  finally { await db.exec('reset role') }
+  await rpc('archive_agent_knowledge', [admin, policy], ['uuid','uuid'])
+  assert.ok(!(await facts(admin, question)).some(source => source.documentId === policy))
 })

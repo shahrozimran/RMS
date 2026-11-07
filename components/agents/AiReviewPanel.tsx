@@ -15,10 +15,10 @@ export default function AiReviewPanel({ review, orderId, preview }: { review: Ai
   const supervisor = review.agents.find(agent => agent.role === 'supervisor')
   const specialists = review.agents.filter(agent => agent.role !== 'supervisor')
   return <section className="panel rag-review">
-    <div className="panel-heading"><div><span className="eyebrow">{preview ? 'Sample AI review' : 'Latest AI review'}</span><h2>Supervisor briefing</h2>
+    <div className="panel-heading"><div><span className="eyebrow">{preview ? 'Sample AI review' : 'AI review'}</span><h2>Supervisor briefing</h2>
       <p>Order #{orderId.slice(-6).toUpperCase()} · Seven roles · <LocalDateTime value={review.observedAt} /> · {preview ? 'Demonstration' : 'Gemini 3.1 Flash Lite'}</p></div><Sparkles size={22} /></div>
     {supervisor && <div className="rag-supervisor"><strong>{supervisor.observation}</strong><p>{supervisor.suggestion}</p></div>}
-    <details className="rag-specialists"><summary>Read six specialist handoffs and cited sources <ChevronDown size={16} /></summary>
+    <details className="rag-specialists"><summary>See what was checked and why <ChevronDown size={16} /></summary>
       <div className="rag-insight-grid">{specialists.map(insight => <article key={insight.role}>
         <div className="row space-between"><h3>{agentCatalog.find(agent => agent.id === insight.role)?.name}</h3><span className={`badge ${insight.status === 'attention' ? 'badge-orange' : 'badge-gray'}`}>{insight.status.replaceAll('_', ' ')}</span></div>
         <p>{insight.observation}</p><p><strong>Suggested check</strong> {insight.suggestion}</p>

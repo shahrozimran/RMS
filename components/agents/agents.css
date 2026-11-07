@@ -52,3 +52,22 @@
   .knowledge-body { padding-inline: 16px; }
   .rag-supervisor, .rag-specialists { margin-inline: 16px; }
 }
+.help-desk-tabs { margin: 0; flex-wrap: wrap; }
+.help-desk-card { transition: border-color .15s, background .15s, transform .15s; }
+.help-desk-card:hover { border-color: var(--accent); background: var(--accent-bg); transform: translateY(-2px); }
+.help-desk-body { padding: 0 23px 23px; }
+.help-desk-list, .help-desk-form { display: grid; gap: 14px; }
+.help-desk-form { max-width: 720px; }
+.help-desk-form .input-group, .help-desk-form .notice { margin: 0; }
+.help-desk-form > .btn { justify-self: start; }
+.help-desk-note { color: var(--charcoal-soft); font-size: 12px; }
+.panel > .help-desk-note { padding: 0 22px 14px; }
+.help-desk-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.help-desk-answer > p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.help-desk-answer > small { display: block; color: var(--charcoal-soft); margin-top: 10px; }
+.help-desk-answer .help-desk-actions { margin-top: 12px; }
+.help-desk-check { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.help-desk-check > div { flex: 1 1 160px; }
+.help-desk-check time { color: var(--charcoal-soft); font-size: 12px; }
+.intel-runs > details > .rag-review { margin-bottom: 18px; }
+@media (max-width: 760px) { .help-desk-body { padding-inline: 15px; } }

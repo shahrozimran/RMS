@@ -134,8 +134,32 @@ test('agent APIs require a Supabase-backed administrator before privileged reads
     const knowledge=load('app/api/agents/knowledge/route.ts',mocks)
     assert.equal((await knowledge.GET()).status,expected)
     assert.equal((await knowledge.POST(new Request('https://rms.test/api/agents/knowledge',{method:'POST',body:'{"action":"import"}'}))).status,expected)
+    const questions=load('app/api/agents/questions/route.ts',mocks)
+    assert.equal((await questions.GET()).status,expected)
+    assert.equal((await questions.POST(new Request('https://rms.test/api/agents/questions',{method:'POST',body:'{}'}))).status,expected)
+    const alerts=load('app/api/alerts/route.ts',mocks)
+    assert.equal((await alerts.POST(new Request('https://rms.test/api/alerts',{method:'POST',body:'{}'}))).status,expected)
     assert.equal(privilegedCalls,0)
   }
+})
+
+test('staff alert reads ignore requested recipients and use the authenticated staff ID',async()=>{
+  const staffId='00000000-0000-4000-8000-000000000089'
+  let scoped=false
+  const {GET}=load('app/api/alerts/route.ts',{
+    '@/lib/auth/session':{getSession:async()=>({id:staffId,role:'Waiter',authType:'staff'})},
+    '@/lib/supabase/server':{createAdminClient:async()=>({from:table=>{
+      assert.equal(table,'team_alerts')
+      return {select:()=>({eq:(column,value)=>{
+        assert.equal(column,'recipient_id');assert.equal(value,staffId);scoped=true
+        return {order:()=>({limit:async()=>({data:[{id:'received'}],error:null})})}
+      }})}
+    }})},
+  })
+  const response=await GET(new NextRequest('https://rms.test/api/alerts?recipient=someone-else'))
+  assert.equal(response.status,200)
+  assert.deepEqual((await response.json()).data,{installed:true,inbox:[{id:'received'}],sent:[],team:[],issue:null})
+  assert.equal(scoped,true)
 })
 
 test('agent command API rejects unsupported execution and additional privilege fields',async()=>{

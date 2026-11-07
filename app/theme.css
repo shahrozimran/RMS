@@ -109,12 +109,19 @@ button:focus-visible, a:focus-visible { outline-color: var(--accent-light); }
 .service-masthead .date-pill { background: var(--midnight-raised); border-color: #4b5139; color: #e8eadc; }
 .service-masthead .btn-primary { background: var(--olive-spark); color: var(--midnight); border-color: var(--olive-spark); }
 .service-masthead .btn-primary:hover:not(:disabled) { background: #eef4b7; }
+.help-desk-subnav { margin: 4px 0 7px 13px; padding-left: 8px; border-left: 1px solid #485032; }
+.help-desk-subnav .app-nav-link { min-height: 34px; font-size: 12px; padding: 7px 10px; }
+.alerts-bell { flex: 0 0 auto; }
+.alert-count { display: inline-flex; align-items: center; justify-content: center; min-width: 19px; height: 19px; padding: 0 4px; border-radius: 99px; background: var(--accent-dark); color: var(--surface); font-size: 10px; font-weight: 750; }
+
+@media (min-width: 761px) and (max-width: 1000px) { .help-desk-subnav { display: none; } }
 
 @media (max-width: 760px) {
   .workspace-title { padding-bottom: 14px; }
   .service-masthead { padding: 23px 19px; }
   .workspace-title h1, .page-header h1 { font-size: 1.7rem; }
   .order-panel-header .icon-button { min-width: 36px; min-height: 36px; }
+  .alerts-bell .alert-label { display: none; }
 }
 
 @media print {

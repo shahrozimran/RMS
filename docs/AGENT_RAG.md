@@ -33,3 +33,11 @@ Customer names, addresses, phone fields, order notes and employee identities are
 Kitchen advice uses open tickets and current stock evidence. Staffing uses shifts and order counts. Floor advice uses table status and capacity. Station progress, staff skills, waitlists and actual turnover times need dedicated records for precise scheduling. The shared source map follows RMS entities and relationships in SQL. A live RDF reasoner and automatic business actions are outside this workflow.
 
 Run `npm test`, `npm run typecheck` and `npm run build` before release. The database tests install all migrations in disposable PGlite and exercise real vector retrieval and queue persistence with simulated provider responses.
+
+## Help desk pages and alerts
+
+Apply `supabase/migrations/016_help_desk.sql` after 015 for questions and alerts. The Help desk sidebar opens Issues, Order checks, Past reviews, Ask a question, Alerts and Saved policies. Each overview card opens the list behind its count. Open a past review to load its saved AI briefing and citations.
+
+Ask a question saves the question, result and cited excerpts in the asking administrator's history. It looks up matching current issues, saved policies and selected live counts. When OpenRouter is configured it also searches document embeddings and can produce a cited explanation. Source lookup works without the key. Questions have a separate rate limit of 12 per administrator per hour.
+
+Administrators can open Alerts to message an active team member or choose **Alert a team member** on an issue. Recipients open **Alerts** from the staff header and mark the message as read. The sender can see read status in **Sent alerts**. Active administrators receive their own in-app alerts when an urgent issue is recorded or an order check exhausts retries. The header checks unread counts while the tab is visible.

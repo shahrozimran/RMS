@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { ClipboardList, LayoutDashboard, LogOut, Plus, QrCode } from 'lucide-react'
 import { pollVisible } from '@/lib/utils/poll'
 import Brand from '@/components/ui/Brand'
+import AlertBell from './AlertBell'
 
 export default function StaffTopBar({ user }: { user: { name: string; role: string } }) {
   const pathname = usePathname()
@@ -32,6 +33,6 @@ export default function StaffTopBar({ user }: { user: { name: string; role: stri
       <Link id="nav-qr-orders" className={`staff-nav-link ${pathname.startsWith('/staff/qr-orders') ? 'active' : ''}`} href="/staff/qr-orders"><QrCode size={15} />QR orders{pendingCount > 0 && <span className="nav-count">{pendingCount}</span>}</Link>
       <Link id="nav-new-order" className="btn btn-primary btn-sm" href="/staff/orders/new"><Plus size={15} />New order</Link>
     </nav>
-    <div className="staff-user">{error && <span role="alert" className="small">{error}</span>}<div><strong>{user.name}</strong><small>{user.role}</small></div><span className="user-avatar">{user.name.split(' ').map(n => n[0]).slice(0,2).join('')}</span><button id="staff-logout-btn" className="icon-button" aria-label="Sign out" onClick={logout} disabled={loggingOut}><LogOut size={15} /></button></div>
+    <div className="staff-user"><AlertBell href="/staff/alerts"/>{error && <span role="alert" className="small">{error}</span>}<div><strong>{user.name}</strong><small>{user.role}</small></div><span className="user-avatar">{user.name.split(' ').map(n => n[0]).slice(0,2).join('')}</span><button id="staff-logout-btn" className="icon-button" aria-label="Sign out" onClick={logout} disabled={loggingOut}><LogOut size={15} /></button></div>
   </header>
 }

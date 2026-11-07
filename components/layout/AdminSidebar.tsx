@@ -3,8 +3,14 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { Activity, ArrowUpRight, BarChart3, Bot, ChevronDown, LayoutDashboard, LogOut, Menu, Settings2, ShieldCheck, Store, TableProperties, Users, UtensilsCrossed, X, ClipboardList, Monitor } from 'lucide-react'
+import { Activity, ArrowUpRight, BarChart3, Bell, BookOpen, Bot, ChevronDown, CircleAlert, Clock3, LayoutDashboard, LogOut, Menu, MessageCircle, Settings2, ShieldCheck, Store, TableProperties, Users, UtensilsCrossed, X, ClipboardList, Monitor } from 'lucide-react'
 import Brand from '@/components/ui/Brand'
+import { helpDeskHref, helpDeskPages, helpDeskPreviewPage } from '@/lib/agents/help-desk'
+
+const helpLinks = [
+  { page: 'issues', Icon: CircleAlert }, { page: 'checks', Icon: Clock3 }, { page: 'reviews', Icon: ClipboardList },
+  { page: 'ask', Icon: MessageCircle }, { page: 'alerts', Icon: Bell }, { page: 'knowledge', Icon: BookOpen },
+] as const
 
 export const ADMIN_NAV = [
   { href: '/admin/dashboard', label: 'Overview', key: 'dashboard', Icon: LayoutDashboard },
@@ -14,7 +20,7 @@ export const ADMIN_NAV = [
   { href: '/admin/tables', label: 'Tables & floor', key: 'tables', Icon: TableProperties },
   { href: '/admin/staff', label: 'Team members', key: 'team', Icon: Users },
   { href: '/admin/reports', label: 'Sales reports', key: 'reports', Icon: BarChart3 },
-  { href: '/admin/intelligence', label: 'Intelligence', key: 'intelligence', Icon: Bot },
+  { href: '/admin/intelligence', label: 'Help desk', key: 'intelligence', Icon: Bot },
   { href: '/admin/activity', label: 'Activity log', key: 'activity', Icon: Activity },
   { href: '/admin/settings', label: 'Settings', key: 'settings', Icon: Settings2 },
 ]
@@ -24,6 +30,8 @@ export default function AdminSidebar({ user, previewView }: { user: { name: stri
   const [open, setOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [error, setError] = useState('')
+  const previewHelpPage = previewView ? helpDeskPreviewPage(previewView) : null
+  const inHelpDesk = previewView ? Boolean(previewHelpPage) : pathname === '/admin/intelligence' || pathname.startsWith('/admin/intelligence/')
   const logout = async () => {
     if (previewView) { router.push('/login'); return }
     setLoggingOut(true)
@@ -39,7 +47,18 @@ export default function AdminSidebar({ user, previewView }: { user: { name: stri
     <aside className={`app-sidebar no-print ${open ? 'is-open' : ''}`} aria-label="Admin navigation">
       <Link href={previewView ? '/preview' : '/admin/dashboard'} className="sidebar-brand"><Brand light /></Link>
       <div className="sidebar-location"><Store size={17} /><span>Main restaurant<small>Management workspace</small></span><ChevronDown size={13} /></div>
-      <nav aria-label="Restaurant management"><div className="nav-section-label">Restaurant</div>{ADMIN_NAV.map(({ href,label,key,Icon },index) => <div key={href}>{index === 5 && <div className="nav-section-label" style={{ marginTop:25 }}>Management</div>}<Link href={previewView ? `/preview?view=${key}` : href} className={`app-nav-link ${(previewView ? previewView === key : pathname.startsWith(href)) ? 'active' : ''}`} title={label} aria-current={(previewView ? previewView === key : pathname.startsWith(href)) ? 'page' : undefined} onClick={() => setOpen(false)}><Icon size={17} strokeWidth={1.7} /><span className="nav-label">{label}</span>{index === 0 && <ArrowUpRight size={12} />}</Link></div>)}</nav>
+      <nav aria-label="Restaurant management"><div className="nav-section-label">Restaurant</div>{ADMIN_NAV.map(({ href,label,key,Icon },index) => {
+        const active = previewView ? previewView === key : key === 'intelligence' ? pathname === href : pathname === href || pathname.startsWith(`${href}/`)
+        return <div key={href}>{index === 5 && <div className="nav-section-label" style={{ marginTop:25 }}>Management</div>}
+          <Link href={previewView ? `/preview?view=${key}` : href} className={`app-nav-link ${active ? 'active' : ''}`} title={label} aria-current={active ? 'page' : undefined} onClick={() => setOpen(false)}>
+            <Icon size={17} strokeWidth={1.7}/><span className="nav-label">{label}</span>{index === 0 && <ArrowUpRight size={12}/>}</Link>
+          {key === 'intelligence' && inHelpDesk && <div className="help-desk-subnav">{helpLinks.map(({ page, Icon: PageIcon }) => {
+            const selected = previewView ? page === previewHelpPage : pathname === helpDeskHref(page)
+            return <Link key={page} href={helpDeskHref(page, Boolean(previewView))} className={`app-nav-link ${selected ? 'active' : ''}`}
+              aria-current={selected ? 'page' : undefined} onClick={() => setOpen(false)}><PageIcon size={15}/><span className="nav-label">{helpDeskPages[page].label}</span></Link>
+          })}</div>}
+        </div>
+      })}</nav>
       <div className="sidebar-service-note"><strong className="row"><ShieldCheck size={15} /> Every detail, in order.</strong><p>A calmer workspace for a better service.</p>{previewView && <Link href="/preview?view=pos" className="row" style={{ fontSize:10,marginTop:12,color:'#b8d8c1' }}>Try the point of sale <ArrowUpRight size={12} /></Link>}</div>
       {error && <p role="alert" style={{ fontSize:10,color:'#e9aaa4',padding:8 }}>{error}</p>}
       <div className="sidebar-user"><span className="user-avatar">{user.name.split(' ').map(n => n[0]).slice(0,2).join('')}</span><div className="user-info"><strong>{user.name}</strong><small>{user.role}</small></div><button className="icon-button" aria-label="Sign out" title="Sign out" id="admin-logout-btn" onClick={logout} disabled={loggingOut}><LogOut size={16} /></button></div>

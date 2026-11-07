@@ -9,6 +9,8 @@ import AppHeader from '@/components/layout/AppHeader'
 import EmptyState from '@/components/ui/EmptyState'
 import WorkspaceLoading from '@/components/ui/WorkspaceLoading'
 import { agentDemo } from '@/lib/agents/demo'
+import { helpDeskPages, helpDeskPreviewPage } from '@/lib/agents/help-desk'
+import HelpDeskFrame from '@/components/agents/HelpDeskFrame'
 import { previewCatalog as catalog, previewDashboard, previewOrders, previewTeam } from '@/lib/preview/data'
 import { formatCurrency } from '@/lib/utils/currency'
 const loading = () => <WorkspaceLoading />
@@ -19,18 +21,26 @@ const GuestOrdering = dynamic(() => import('@/components/customer/GuestOrdering'
 const SettingsWorkspace = dynamic(() => import('@/components/settings/SettingsWorkspace'), { loading })
 const TeamWorkspace = dynamic(() => import('@/components/team/TeamWorkspace'), { loading })
 const AgentsWorkspace = dynamic(() => import('@/components/agents/AgentsWorkspace'), { loading })
+const AskWorkspace = dynamic(() => import('@/components/agents/AskWorkspace'), { loading })
+const AlertsWorkspace = dynamic(() => import('@/components/agents/AlertsWorkspace'), { loading })
+const KnowledgeLibrary = dynamic(() => import('@/components/agents/KnowledgeLibrary'), { loading })
 const RevenueChart = dynamic(() => import('@/components/preview/RevenueChart'), { loading })
 const fmt=(n:number)=>formatCurrency(n,catalog.settings.currency)
 const titles:Record<string,string>={dashboard:'Overview',menu:'Menu management',pos:'Point of sale',customer:'Guest menu',tables:'Tables & floor',team:'Team members',orders:'Orders',reports:'Sales reports',activity:'Activity log',settings:'Settings',intelligence:'Intelligence'}
 const activities=[{name:'Menu availability updated',detail:'Vanilla ice cream marked as sold out',by:'Amelia James',time:'2 minutes ago',Icon:UtensilsCrossed},{name:'Payment completed',detail:'Order #10482D · cash payment received',by:'Oliver Chen',time:'8 minutes ago',Icon:CreditCard},{name:'New order created',detail:'Table 03 · 3 items sent to the kitchen',by:'Sofia Ahmed',time:'12 minutes ago',Icon:ClipboardList},{name:'Table status updated',detail:'Table 07 is being prepared for the next guest',by:'Sofia Ahmed',time:'18 minutes ago',Icon:TableProperties},{name:'Team member signed in',detail:'Morning service is ready to begin',by:'Oliver Chen',time:'32 minutes ago',Icon:ShieldCheck}]
-export default function PreviewWorkspace({view}:{view:string}){
+export default function PreviewWorkspace({view,issue,checkFilter='waiting'}:{view:string;issue?:string;checkFilter?:'waiting'|'failed'|'all'}){
  const [toast,setToast]=useState('')
  const timer=useRef<ReturnType<typeof setTimeout>|null>(null)
  const notify=(message:string)=>{if(timer.current)clearTimeout(timer.current);setToast(message);timer.current=setTimeout(()=>setToast(''),5500)}
  const sampleSubmit=async()=>{notify('Preview order received. Sample data only — no restaurant records changed.')}
+ const helpPage = helpDeskPreviewPage(view)
+ const helpContent = helpPage === 'ask' ? <AskWorkspace preview/> : helpPage === 'alerts' ? <AlertsWorkspace admin preview issueId={issue}/>
+  : helpPage === 'knowledge' ? <HelpDeskFrame page="knowledge" preview><KnowledgeLibrary preview/></HelpDeskFrame>
+  : helpPage ? <AgentsWorkspace initial={agentDemo} preview page={helpPage} checkFilter={checkFilter} focusedIssue={agentDemo.recommendations.find(item=>item.id===issue)}/> : null
  const banner=<div className="preview-banner"><span className="preview-label"><CircleDot size={11}/>Design preview · sample data</span><div><Link href="/preview?view=pos">Point of sale</Link><Link href="/preview?view=customer">Guest menu</Link><a href="/login">Sign in<ArrowUpRight size={10}/></a></div></div>
  if(view==='customer')return <>{banner}<GuestOrdering catalog={catalog} restaurantName="Olive & Grain" tableId={3} onSubmit={sampleSubmit}/>{toast&&<div role="status" className="preview-success"><CheckCircle2 size={17}/>{toast}<button aria-label="Dismiss notification" onClick={()=>setToast('')}><X size={14}/></button></div>}</>
- return <div className="app-shell"><AdminSidebar user={{name:'Alex Morgan',role:'Design preview'}} previewView={view}/><main className="admin-main"><AppHeader name="Alex Morgan" title={titles[view]} preview/>{banner}<div className="app-content">{view==='intelligence'?<AgentsWorkspace initial={agentDemo} preview/>:view==='dashboard'?<Dashboard {...previewDashboard}/>:view==='menu'?<MenuWorkspace products={catalog.products} categories={catalog.categories} currency={catalog.settings.currency} preview/>:view==='pos'?<PosWorkspace catalog={catalog} onSubmit={sampleSubmit}/>:view==='tables'?<Tables/>:view==='team'?<Team/>:view==='orders'?<Orders/>:view==='reports'?<Reports/>:view==='activity'?<ActivityLog/>:<Settings notify={notify}/>}</div></main>{toast&&<div role="status" className="preview-success"><CheckCircle2 size={17}/>{toast}<button aria-label="Dismiss notification" onClick={()=>setToast('')}><X size={14}/></button></div>}</div>
+ if(view==='staff-alerts') return <>{banner}<main className="staff-content"><AlertsWorkspace preview/></main></>
+ return <div className="app-shell"><AdminSidebar user={{name:'Alex Morgan',role:'Design preview'}} previewView={view}/><main className="admin-main"><AppHeader name="Alex Morgan" title={helpPage ? helpDeskPages[helpPage].label : titles[view]} preview/>{banner}<div className="app-content">{helpContent ?? (view==='dashboard'?<Dashboard {...previewDashboard}/>:view==='menu'?<MenuWorkspace products={catalog.products} categories={catalog.categories} currency={catalog.settings.currency} preview/>:view==='pos'?<PosWorkspace catalog={catalog} onSubmit={sampleSubmit}/>:view==='tables'?<Tables/>:view==='team'?<Team/>:view==='orders'?<Orders/>:view==='reports'?<Reports/>:view==='activity'?<ActivityLog/>:<Settings notify={notify}/>)}</div></main>{toast&&<div role="status" className="preview-success"><CheckCircle2 size={17}/>{toast}<button aria-label="Dismiss notification" onClick={()=>setToast('')}><X size={14}/></button></div>}</div>
 }
 function Title({eyebrow,title,description,children}:{eyebrow:string;title:string;description:string;children?:React.ReactNode}){return <div className="workspace-title"><div><span className="eyebrow">{eyebrow}</span><h1>{title}</h1><p>{description}</p></div><div className="workspace-title-actions">{children}</div></div>}
 function Tables(){
