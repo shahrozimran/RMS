@@ -1,0 +1,48 @@
+name: Release RMS Desktop
+
+on:
+  push:
+    tags:
+      - 'desktop-v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rms-desktop-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build the installer and update package
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME -replace '^desktop-v', ''
+          ./desktop/Build-Release.ps1 -Version $version
+      - name: Publish the desktop release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $version = $env:GITHUB_REF_NAME -replace '^desktop-v', ''
+          $directory = "desktop/dist/releases-$version"
+          $assets = @(
+            (Get-ChildItem -LiteralPath $directory -Filter '*-Setup.exe' -File)
+            (Get-ChildItem -LiteralPath $directory -Filter '*-full.nupkg' -File)
+            (Get-Item -LiteralPath "$directory/releases.win-x64.json")
+          )
+          if ($assets.Count -ne 3) { throw 'Expected a setup file, a full update package, and a release index.' }
+          $files = @($assets.FullName)
+          gh release create $env:GITHUB_REF_NAME @files --repo $env:GITHUB_REPOSITORY --verify-tag --title "RMS Desktop $version" --generate-notes
