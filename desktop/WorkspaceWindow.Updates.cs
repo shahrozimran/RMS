@@ -80,9 +80,11 @@ internal sealed partial class WorkspaceWindow
             if (beforeSignIn)
             {
                 updateBeforeSignIn = true;
+                checkUpdate.Parent?.Hide();
                 SetStatus("An update is ready", $"Install RMS Desktop {version} to continue to sign-in.");
                 applyUpdate.Visible = true;
-                applyUpdate.Focus();
+                AcceptButton = applyUpdate;
+                ActiveControl = applyUpdate;
             }
         }
         catch (Exception)
