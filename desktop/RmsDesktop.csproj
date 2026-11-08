@@ -10,6 +10,7 @@
     <ApplicationIcon>RMS.ico</ApplicationIcon>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
+    <DefaultItemExcludes>$(DefaultItemExcludes);dist/**</DefaultItemExcludes>
     <Version>1.1.0</Version>
   </PropertyGroup>
   <ItemGroup>
