@@ -1,20 +1,22 @@
 import { z } from 'zod'
+import type { AiReview } from './rag-contracts.ts'
 
 const amount = z.number().finite()
 export const contextSchema = z.object({
   order: z.object({
     id: z.uuid(), status: z.enum(['draft','active','billed','paid','void','refunded']),
     created_at: z.string().datetime({ offset: true }), updated_at: z.string().datetime({ offset: true }),
-    source: z.string().max(30),
+    source: z.string().max(30), stock_confirmed: z.boolean().optional(),
   }).strict(),
   products: z.array(z.object({
     id: z.uuid().nullable(), name: z.string().max(300), quantity: amount.positive(),
     available: z.boolean(), has_variants: z.boolean(), has_modifiers: z.boolean(), has_recipe: z.boolean(),
+    makeable: amount.int().nonnegative().nullable().optional(),
   }).strict()).max(200),
   ingredients: z.array(z.object({
     id: z.uuid(), name: z.string().max(300), unit: z.string().max(50),
     on_hand: amount, threshold: amount, required: amount.positive(), open_demand: amount.nonnegative(),
-  }).strict()).max(1000),
+  }).strict()).max(4000),
 }).strict()
 
 export const evidenceSchema = z.object({
@@ -57,6 +59,7 @@ export type Recommendation = Finding & {
 export type Run = {
   id: string; order_id: string; summary: string; policy_version: string;
   messages: AgentOutput['messages']; created_at: string;
+  ai_review?: AiReview | null;
 }
 export type AgentOverview = {
   enabled: boolean; setupRequired: boolean; recommendations: Recommendation[]; runs: Run[];

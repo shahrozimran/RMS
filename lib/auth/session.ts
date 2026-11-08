@@ -2,13 +2,14 @@ import { cache } from 'react'
 import { cookies } from 'next/headers'
 import { createAdminClient, createServerSupabaseClient } from '@/lib/supabase/server'
 import { verifyStaffToken } from '@/lib/auth/staff-auth'
+import { staffCookieName } from '@/lib/auth/cookies'
 import type { RBACUser, Permissions } from '@/lib/auth/rbac'
 
 export type SessionUser = RBACUser & { name: string; username: string; email?: string; authType: 'admin' | 'staff' }
 
 // React cache is request-scoped. Never cache authorization across requests.
 export const getSession = cache(async (): Promise<SessionUser | null> => {
-  const token = (await cookies()).get('rms_staff_token')?.value
+  const token = (await cookies()).get(staffCookieName)?.value
   const db = await createAdminClient()
   if (token) {
     try {

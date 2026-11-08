@@ -16,7 +16,7 @@ test('agent findings use outstanding mapped demand and retain timestamped eviden
   const result=evaluateOrder(input)
   assert.equal(result.findings[0].kind,'stock_pressure')
   assert.equal(result.findings[0].severity,'high')
-  assert.match(result.findings[0].evidence[0].value,/open-order demand 5 pieces/)
+  assert.match(result.findings[0].evidence[0].value,/Older orders still need 5 pieces/)
   assert.equal(result.findings[0].evidence[0].observed_at,input.captured_at)
   assert.deepEqual(result.messages.map(m=>m.sender),['order','inventory','supervisor'])
   assert.match(result.summary,/No business records were changed/)

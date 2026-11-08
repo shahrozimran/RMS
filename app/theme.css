@@ -1,0 +1,129 @@
+/* Ivory surfaces, midnight navigation and olive emphasis across the workspace. */
+body { background: var(--canvas); }
+::selection { background: var(--olive-spark); color: var(--midnight); }
+button:focus-visible, a:focus-visible { outline-color: var(--accent-light); }
+.input:focus, .search-field:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px #58663022;
+}
+.surface-card, .panel, .metric-card, .menu-card, .pos-product, .order-panel, .floor-card {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: 0 2px 8px #25241406;
+}
+.app-sidebar {
+  background: var(--midnight);
+  color: #e6e6d6;
+  border-color: #303326;
+}
+.sidebar-brand { padding-bottom: 24px; }
+.sidebar-location, .sidebar-service-note {
+  background: var(--midnight-raised);
+  border-color: #3d422d;
+  color: #e1e4cf;
+}
+.sidebar-location small, .sidebar-service-note p, .sidebar-user small, .nav-section-label {
+  color: #aeb49a;
+}
+.sidebar-service-note strong, .brand-light .brand-symbol { color: var(--olive-spark); }
+.brand-light .brand-symbol { background: #303723; border-color: #465036; }
+.brand-light .brand-wordmark { color: var(--surface); }
+.brand-light .brand-wordmark > span { color: #aeb49a; }
+.sidebar-user { border-color: #353929; }
+.sidebar-user .user-avatar { color: var(--olive-spark); background: #353e25; }
+.app-nav-link { color: #d3d6c4; min-height: 43px; }
+.app-nav-link > svg { color: #aeb68f; }
+.app-nav-link:hover { color: var(--surface); background: #303524; }
+.app-nav-link.active { color: #262e16; background: var(--olive-spark); }
+.app-nav-link.active > svg { color: #435020; }
+.app-header, .staff-topbar {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: 0 2px 8px #25241406;
+}
+.app-header .user-avatar, .brand-symbol, .metric-icon, .activity-symbol {
+  background: var(--accent-bg-mid);
+  color: var(--accent-dark);
+}
+.app-header .jump-trigger, .search-field, .date-pill, .icon-button, .btn-secondary {
+  background: var(--surface);
+  border-color: var(--border);
+}
+.workspace-title { padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+.workspace-title h1, .page-header h1 { font-size: clamp(1.7rem, 2.7vw, 2.35rem); line-height: 1.15; }
+.workspace-title p, .page-header p, .panel-heading p { color: var(--charcoal-soft); }
+.eyebrow { color: var(--accent); font-size: 11px; }
+.btn-primary, .btn-accent { background: var(--accent-dark); color: var(--surface); border-color: var(--accent-dark); }
+.btn-primary:hover:not(:disabled), .btn-accent:hover:not(:disabled) { background: #333e19; }
+.filter-tab, .staff-nav-link { color: var(--charcoal-mid); }
+.filter-tab.active, .staff-nav-link.active, .settings-nav button.active {
+  background: var(--accent-bg-mid);
+  color: var(--accent-dark);
+  border-color: #c8d0a9;
+}
+.filter-tab:hover, .staff-nav-link:hover { background: var(--accent-bg); }
+.data-table th { background: var(--surface-raised); color: var(--charcoal-mid); }
+.data-table td { border-color: var(--border); }
+.data-table tbody tr:hover td { background: var(--accent-bg); }
+.food-visual { background: #ece9d9; color: #777b52; }
+.food-coffee { background: #eae2d1; color: #80684d; }
+.food-green { background: #e7ebd7; color: #63764a; }
+.food-sweet { background: #f0e4de; color: #9a6e66; }
+.food-plate { background: #fffdf4e8; border-color: #fffcf5; }
+.food-visual-caption { color: #6e6d58; }
+.pos-product-body > p, .menu-card-body p { color: var(--charcoal-soft); }
+.pos-product-action > button, .pos-variants button, .quantity-control {
+  background: var(--accent-bg);
+  color: var(--accent-dark);
+  border-color: #d4dac0;
+}
+.order-panel { overflow: hidden; }
+.order-panel-header { background: var(--midnight); color: var(--surface); }
+.order-panel-header h2 { color: var(--surface); }
+.order-panel-header small { color: #bfc5ab; }
+.order-panel-header .icon-button { background: var(--midnight-raised); color: #d6ddc0; border-color: #464c35; }
+.order-type-switch, .order-totals, .order-panel-footer { background: var(--surface-raised); }
+.order-type-switch button.active { background: var(--surface); color: var(--accent-dark); }
+.customer-hero, .login-story, .service-masthead { background: var(--midnight); color: var(--surface); }
+.customer-hero, .service-masthead { border: 1px solid #343a28; }
+.customer-hero::after { color: #353c28; }
+.customer-hero h1, .login-story h2, .service-masthead h1 { color: var(--surface); }
+.customer-hero .eyebrow, .login-story-label, .login-story h2 em, .service-masthead .eyebrow { color: var(--olive-spark); }
+.customer-hero p, .login-story-main > p, .service-masthead p, .login-story-foot { color: #d4d8c1; }
+.customer-header, .login-screen, .login-panel { background: var(--surface); }
+.customer-header { border-radius: 12px; padding-inline: 16px; }
+.login-widget { background: #292f20; border-color: #495239; }
+.login-widget-price { color: var(--olive-spark); }
+.login-widget-lines > div, .login-widget-top { color: #c8ceb7; }
+.login-tabs-new { background: var(--surface-raised); }
+.login-tabs-new button.active { color: var(--accent-dark); background: var(--accent-bg-mid); }
+.pos-modal, .command-dialog { background: var(--surface); border-color: var(--border); }
+.preview-banner { background: var(--accent-bg-mid); color: var(--accent-dark); border-color: #d3d8bd; }
+.sidebar-mobile-toggle[aria-expanded='true'] { background: var(--midnight-raised); color: var(--olive-spark); }
+.service-masthead {
+  background-image: radial-gradient(ellipse at 100% 100%, #344124, transparent 57%);
+  border-radius: 16px;
+  padding: clamp(22px, 3vw, 38px);
+  min-height: 146px;
+}
+.service-masthead .date-pill { background: var(--midnight-raised); border-color: #4b5139; color: #e8eadc; }
+.service-masthead .btn-primary { background: var(--olive-spark); color: var(--midnight); border-color: var(--olive-spark); }
+.service-masthead .btn-primary:hover:not(:disabled) { background: #eef4b7; }
+.help-desk-subnav { margin: 4px 0 7px 13px; padding-left: 8px; border-left: 1px solid #485032; }
+.help-desk-subnav .app-nav-link { min-height: 34px; font-size: 12px; padding: 7px 10px; }
+.alerts-bell { flex: 0 0 auto; }
+.alert-count { display: inline-flex; align-items: center; justify-content: center; min-width: 19px; height: 19px; padding: 0 4px; border-radius: 99px; background: var(--accent-dark); color: var(--surface); font-size: 10px; font-weight: 750; }
+
+@media (min-width: 761px) and (max-width: 1000px) { .help-desk-subnav { display: none; } }
+
+@media (max-width: 760px) {
+  .workspace-title { padding-bottom: 14px; }
+  .service-masthead { padding: 23px 19px; }
+  .workspace-title h1, .page-header h1 { font-size: 1.7rem; }
+  .order-panel-header .icon-button { min-width: 36px; min-height: 36px; }
+  .alerts-bell .alert-label { display: none; }
+}
+
+@media print {
+  body { background: white; }
+}

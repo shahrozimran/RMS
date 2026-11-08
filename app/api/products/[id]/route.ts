@@ -7,17 +7,18 @@ import { requirePermission } from '@/lib/auth/rbac'
 import { productUpdateSchema } from '@/lib/utils/validation'
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const supabase = await createAdminClient()
-  const resolvedParams = await params
-  const { data, error } = await supabase
-    .from('products')
-    .select('*, category:categories(id,name), modifiers(*)')
-    .eq('id', resolvedParams.id)
-    .single()
-  if (error) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  return NextResponse.json({ data })
+  try {
+    requirePermission(await getSession(), 'menu', 'read')
+    const supabase = await createAdminClient()
+    const { id } = await params
+    const { data, error } = await supabase
+      .from('products')
+      .select('*, category:categories(id,name), modifiers(*)')
+      .eq('id', id)
+      .single()
+    if (error) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    return NextResponse.json({ data })
+  } catch (error) { return apiError(error) }
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

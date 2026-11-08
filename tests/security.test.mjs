@@ -17,7 +17,7 @@ function load(file,mocks={}) {
   const native=Module.createRequire(absolute)
   m.require=(name)=> {
     if(Object.hasOwn(mocks,name)) return mocks[name]
-    if(name.startsWith('@/')) return load(name.slice(2)+'.ts',mocks)
+    if(name.startsWith('@/')) return name.endsWith('.mjs') ? native(path.resolve(name.slice(2))) : load(name.slice(2)+'.ts',mocks)
     if(name.startsWith('.') && fs.existsSync(path.resolve(path.dirname(absolute),name)+'.ts')) return load(path.resolve(path.dirname(absolute),name)+'.ts',mocks)
     return native(name)
   }
@@ -25,6 +25,7 @@ function load(file,mocks={}) {
   return m.exports
 }
 const key='a-test-only-signing-key-with-more-than-32-bytes'
+process.env.NEXT_PUBLIC_SUPABASE_URL='https://fixture.supabase.co'
 
 test('server-rendered POS catalog keeps fresh permission checks before service-role reads',async()=>{
   let reads=0
@@ -93,6 +94,83 @@ test('public login and isolated design preview never call the authentication pro
   }
 })
 
+test('production pages use a fresh script nonce and Supabase accepts only a secure project origin',async()=>{
+  const prior=process.env.NODE_ENV
+  process.env.NODE_ENV='production'
+  try{
+    const {proxy}=load('proxy.ts')
+    const request=()=>new NextRequest('https://rms.test/login',{headers:{'Content-Security-Policy':"script-src 'nonce-forged'"}})
+    const first=await proxy(request()), second=await proxy(request())
+    const policy=first.headers.get('Content-Security-Policy')
+    assert.equal(first.headers.get('x-middleware-request-content-security-policy'),policy)
+    assert.match(policy,/script-src 'self' 'nonce-[A-Za-z0-9+/=]+' 'strict-dynamic';/)
+    assert.doesNotMatch(policy,/nonce-forged|unsafe-eval/)
+    assert.notEqual(policy,second.headers.get('Content-Security-Policy'))
+    assert.match(policy,/connect-src 'self' https:\/\/fixture\.supabase\.co wss:\/\/fixture\.supabase\.co/)
+    const {supabaseUrl}=await import('../lib/supabase/connection.mjs')
+    for(const url of ['http://fixture.supabase.co','http://localhost:54321','https://user:password@fixture.supabase.co','https://fixture.supabase.co/path']) {
+      assert.throws(()=>supabaseUrl(url),/HTTPS project origin/)
+    }
+    assert.equal(supabaseUrl('https://fixture.supabase.co/'),'https://fixture.supabase.co')
+    const {staffCookieName,authCookieOptions}=load('lib/auth/cookies.ts')
+    assert.equal(staffCookieName,'__Host-rms_staff_token')
+    assert.deepEqual(authCookieOptions,{secure:true,sameSite:'lax',path:'/'})
+  }finally{if(prior===undefined)delete process.env.NODE_ENV;else process.env.NODE_ENV=prior}
+})
+
+test('untrusted production callers cannot reach login or QR queries, while development quotas are scoped',async()=>{
+  const original={vercel:process.env.VERCEL,proxy:process.env.TRUST_PROXY_HEADERS,mode:process.env.NODE_ENV}
+  delete process.env.VERCEL
+  delete process.env.TRUST_PROXY_HEADERS
+  process.env.NODE_ENV='development'
+  const buckets=[]
+  const token='00000000-0000-4000-8000-000000000001'
+  const errors=load('lib/api/errors.ts')
+  const mocks={
+    '@/lib/api/errors':errors,
+    './errors':errors,
+    '@/lib/auth/staff-auth':{authenticateStaff:async()=>{throw Error('Invalid credentials')}},
+    '@/lib/supabase/server':{createAdminClient:async()=>({rpc:async(name,args)=>{
+      if(name==='get_qr_menu') return args.p_token===token ? {data:{products:[]}} : {error:{code:'P0002'}}
+      assert.equal(name,'consume_rate_limit')
+      buckets.push(args.p_key)
+      return {data:true}
+    }})},
+  }
+  try{
+    const login=load('app/api/auth/login/route.ts',mocks)
+    const request=(username)=>new NextRequest('https://rms.test/api/auth/login',{
+      method:'POST',headers:{'Content-Type':'application/json','x-forwarded-for':'192.0.2.99'},
+      body:JSON.stringify({username,password:'test'}),
+    })
+    for(const user of ['alice','bob','ALICE']) assert.equal((await login.POST(request(user))).status,401)
+    assert.notEqual(buckets[0],buckets[1])
+    assert.equal(buckets[0],buckets[2])
+    const qr=load('app/api/qr/[tableToken]/route.ts',mocks)
+    const menu=(tableToken)=>qr.GET(new NextRequest('https://rms.test/api/qr/'+tableToken),{params:Promise.resolve({tableToken})})
+    assert.equal((await menu('00000000-0000-4000-8000-000000000002')).status,404)
+    assert.equal(buckets.length,3)
+    assert.equal((await menu(token)).status,200)
+    assert.match(buckets.at(-1),/^qr-menu:table:/)
+    process.env.NODE_ENV='production'
+    const untouched=buckets.length
+    assert.equal((await login.POST(request('alice'))).status,503)
+    assert.equal((await menu(token)).status,503)
+    assert.equal(buckets.length,untouched)
+    process.env.VERCEL='1'
+    const {trustedClientIp}=load('lib/api/rate-limit.ts',mocks)
+    assert.equal(trustedClientIp(new Request('https://rms.test',{headers:{'x-vercel-forwarded-for':'192.0.2.11','x-forwarded-for':'192.0.2.99'}})),'192.0.2.11')
+    assert.equal(trustedClientIp(new Request('https://rms.test',{headers:{'x-vercel-forwarded-for':'192.0.2.11, 192.0.2.99'}})),null)
+  }finally{
+    if(original.vercel===undefined) delete process.env.VERCEL
+    else process.env.VERCEL=original.vercel
+    if(original.proxy===undefined) delete process.env.TRUST_PROXY_HEADERS
+    else process.env.TRUST_PROXY_HEADERS=original.proxy
+    if(original.mode===undefined) delete process.env.NODE_ENV
+    else process.env.NODE_ENV=original.mode
+  }
+})
+
 test('reused currency formatters preserve currency, locale and invalid-setting fallbacks',()=>{
   const {formatCurrency,SUPPORTED_CURRENCIES}=load('lib/utils/currency.ts')
   for(let run=0;run<2;run++)for(const currency of SUPPORTED_CURRENCIES){
@@ -131,8 +209,35 @@ test('agent APIs require a Supabase-backed administrator before privileged reads
     assert.equal((await route.POST(new Request('https://rms.test/api/agents',{method:'POST',body:'{"action":"queue"}'}))).status,expected)
     const review=load('app/api/agents/recommendations/[id]/route.ts',mocks)
     assert.equal((await review.POST(new Request('https://rms.test/api/agents/recommendations/x',{method:'POST',body:'{}'}),{params:Promise.resolve({id:'x'})})).status,expected)
+    const knowledge=load('app/api/agents/knowledge/route.ts',mocks)
+    assert.equal((await knowledge.GET()).status,expected)
+    assert.equal((await knowledge.POST(new Request('https://rms.test/api/agents/knowledge',{method:'POST',body:'{"action":"import"}'}))).status,expected)
+    const questions=load('app/api/agents/questions/route.ts',mocks)
+    assert.equal((await questions.GET()).status,expected)
+    assert.equal((await questions.POST(new Request('https://rms.test/api/agents/questions',{method:'POST',body:'{}'}))).status,expected)
+    const alerts=load('app/api/alerts/route.ts',mocks)
+    assert.equal((await alerts.POST(new Request('https://rms.test/api/alerts',{method:'POST',body:'{}'}))).status,expected)
     assert.equal(privilegedCalls,0)
   }
+})
+
+test('staff alert reads ignore requested recipients and use the authenticated staff ID',async()=>{
+  const staffId='00000000-0000-4000-8000-000000000089'
+  let scoped=false
+  const {GET}=load('app/api/alerts/route.ts',{
+    '@/lib/auth/session':{getSession:async()=>({id:staffId,role:'Waiter',authType:'staff'})},
+    '@/lib/supabase/server':{createAdminClient:async()=>({from:table=>{
+      assert.equal(table,'team_alerts')
+      return {select:()=>({eq:(column,value)=>{
+        assert.equal(column,'recipient_id');assert.equal(value,staffId);scoped=true
+        return {order:()=>({limit:async()=>({data:[{id:'received'}],error:null})})}
+      }})}
+    }})},
+  })
+  const response=await GET(new NextRequest('https://rms.test/api/alerts?recipient=someone-else'))
+  assert.equal(response.status,200)
+  assert.deepEqual((await response.json()).data,{installed:true,inbox:[{id:'received'}],sent:[],team:[],issue:null})
+  assert.equal(scoped,true)
 })
 
 test('agent command API rejects unsupported execution and additional privilege fields',async()=>{

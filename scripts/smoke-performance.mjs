@@ -15,7 +15,7 @@ for (const [route, status] of probes) {
   if (route === '/login') {
     const html = await response.text()
     assert.ok(!html.includes('fonts.googleapis.com'), 'Font stylesheet must be self-hosted')
-    assert.ok(html.includes('/_next/static/media/'), 'Built font assets should be present')
+    assert.match(html, /\/_next\/static\/(?:immutable\/)?media\//, 'Built font assets should be present')
   }
   console.log(`${response.status} ${route}`)
 }

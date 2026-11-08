@@ -1,31 +1,33 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 /* ─── DESIGN TOKENS ──────────────────────────────────────── */
 :root {
   /* Canvas & Surfaces */
-  --canvas:          #FAF8F5;
-  --surface:         #FFFFFF;
-  --surface-raised:  #F5F2EE;
-  --surface-hover:   #EDE9E3;
-  --surface-muted:   #E8E3DC;
+  --midnight:        #171913;
+  --midnight-raised: #24271c;
+  --olive-spark:     #dbe894;
+  --canvas:          #f5f2e9;
+  --surface:         #fffdf6;
+  --surface-raised:  #f1eee2;
+  --surface-hover:   #ebe7da;
+  --surface-muted:   #e5e1d3;
 
   /* Borders */
-  --border:          #E4DED6;
-  --border-strong:   #CEC8BF;
+  --border:          #dfdbcd;
+  --border-strong:   #c9c6b6;
 
   /* Text — Charcoal scale */
-  --charcoal:        #2C2C2C;
-  --charcoal-mid:    #5A5652;
-  --charcoal-soft:   #8A857F;
-  --charcoal-faint:  #B5B0AA;
+  --charcoal:        #202119;
+  --charcoal-mid:    #4c5141;
+  --charcoal-soft:   #626653;
+  --charcoal-faint:  #838672;
 
-  /* Accent — Warm Gold */
-  --accent:          #C8A97E;
-  --accent-dark:     #A8895E;
-  --accent-light:    #D9BC96;
-  --accent-bg:       #F5EFE6;
-  --accent-bg-mid:   #EEE4D4;
+  /* Olive scale, with a brighter highlight on midnight surfaces. */
+  --accent:          #586630;
+  --accent-dark:     #435020;
+  --accent-light:    #a8b568;
+  --accent-bg:       #eef0df;
+  --accent-bg-mid:   #e3e8cd;
 
   /* Semantic Status — earthy, desaturated */
   --success:         #4A7C59;
@@ -44,7 +46,7 @@
   --status-cleaning: #6B6560;
 
   /* Sidebar */
-  --sidebar-width:      240px;
+  --sidebar-width:      248px;
   --sidebar-collapsed:  64px;
 
   /* Shadows */

@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
+import { connection } from 'next/server'
 import './globals.css'
 import './workspace.css'
+import './theme.css'
 import ServiceWorker from '@/components/ServiceWorker'
 import { Inter, Plus_Jakarta_Sans } from 'next/font/google'
 
@@ -17,12 +19,14 @@ export const metadata: Metadata = {
 }
 
 export const viewport = {
-  themeColor: '#205e41',
+  themeColor: '#171913',
   width: 'device-width',
   initialScale: 1,
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // The browser policy nonce is unique to this request.
+  await connection()
   return (
     <html lang="en" className={`${inter.variable} ${jakarta.variable}`} suppressHydrationWarning>
       <body><ServiceWorker />{children}</body>

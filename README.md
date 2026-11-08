@@ -47,3 +47,11 @@ The preview is development-only, uses labelled sample data and shares the real U
 ## Operations intelligence (first increment)
 
 The new `/admin/intelligence` workspace adds advisory Order, Inventory and Supervisor reviews with evidence and a durable background queue. See [installation, limitations and remaining agents](docs/AGENT_IMPLEMENTATION.md). Apply migration 014 before using live reviews, then run `npm run agents:worker` with Node.js 24 on a background host. Reviews start disabled. The development-only sample is `/preview?view=intelligence`. SQL tests and the worker require Node.js 24; the existing application runtime requirements are unchanged.
+
+## Security update
+
+Apply `supabase/migrations/018_security_boundaries.sql` after 017 before deploying this revision. It narrows browser database grants, separates password cooldowns from active sessions, and requires refund permission to reverse a paid order. Staff sign in again after deployment because the production session cookie now uses a host-bound name.
+
+Production staff sign-in and guest QR APIs require a verified client IP. Keep Vercel system environment variables enabled so the app can use the managed IP header. For another production host, set `TRUST_PROXY_HEADERS=true` behind a private reverse proxy that replaces `x-forwarded-for` with one verified address and blocks direct access to the Next server. Development can run without this setup.
+
+Set `NEXT_PUBLIC_SUPABASE_URL` to the HTTPS project origin. Local Supabase over HTTP is supported in development on loopback. Keep service credentials in server/worker environment settings. Supabase account MFA, backups, encryption at rest, and the deployed ingress remain hosting settings.
